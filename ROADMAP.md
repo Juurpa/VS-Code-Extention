@@ -77,6 +77,23 @@ Every AI feature works with any provider (Claude Code, OpenAI-compatible, local 
 11. **Recipes (workflows).** Saved multi-step jobs the AI or the user can run, for example "prepare for sharing": OCR → redact → strip metadata → compress → verify. Batch mode for whole folders.
 12. **More MCP surface**: expose documents and comments as MCP resources, add MCP prompts for common tasks, and tools for everything above.
 
+## Remote control from the phone ("Synaptik")
+
+"Synaptik" is the working name for the chat on the phone that commands the always-on tool server and the AI sessions on the user's own computer.
+
+**Step 1 (no code, safest): Claude Remote Control.** Run `claude remote-control` (or the Claude Desktop app) on the computer in the project folder. The session runs locally and shows up in the Claude app on the phone. The PDF tool server stays on the computer; nothing listens on the internet.
+
+**Step 2 (optional): reachable tool server.** Only if Step 1 is not enough. Add a remote transport (MCP Streamable HTTP) next to the local stdio transport, and reach it through a private network (for example Tailscale) rather than a public address.
+
+Security rules for any remote access (non-negotiable):
+- Authenticated and encrypted (HTTPS plus OAuth or a long random token, never an open port).
+- Allow-list of folders; no access outside them.
+- Read-only by default; every change (redact, fill, merge, delete pages) needs an explicit approval on the phone, with a preview.
+- Originals are never overwritten; results are new files.
+- No document content in logs, notifications or error messages; audit log with file names and actions only.
+- Easy off switch, automatic stop after inactivity, and a visible "remote active" indicator in VS Code.
+- Naming: check trademark and app-store conflicts before using "Synaptik" publicly.
+
 ## Beyond PDF – separate extensions
 
 Images, video and office files should not bloat this extension. Plan: when PDF Workbench is stable, split shared code (file handling, redaction principles, MCP server skeleton, AI provider layer) into a core package and ship focused extensions:
