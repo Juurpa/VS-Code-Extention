@@ -33,7 +33,7 @@ async function collect(ctx, pdf) {
   } catch (e) { /* no file */ }
   return {
     items: [
-      ['Werkbank', (ctx.extension.packageJSON || {}).version],
+      ['PDF Workbench', (ctx.extension.packageJSON || {}).version],
       ['VS Code', `${vscode.version} (${vscode.env.appName})`],
       ['System', `${process.platform} ${process.arch}, ${os.release()}`],
       ['Language', vscode.env.language],
@@ -82,7 +82,7 @@ async function open(ctx, opt = {}) {
           vscode.window.showInformationMessage('Your email app is open. The full report is also in your clipboard. Nothing is sent until you click “Send” in the email.');
         }
       } else if (m.type === 'close') panel.dispose();
-    } catch (e) { record('feedback', e); vscode.window.showErrorMessage('Werkbank: ' + (e.message || e)); }
+    } catch (e) { record('feedback', e); vscode.window.showErrorMessage('PDF Workbench: ' + (e.message || e)); }
   });
 }
 
@@ -106,7 +106,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--vscode-textCodeB
 [hidden]{display:none!important}
 </style></head><body>
 <h2 id="h">Report a Problem</h2>
-<p class="sub">Your report helps improve Werkbank in the next update. Nothing is sent automatically.</p>
+<p class="sub">Your report helps improve PDF Workbench in the next update. Nothing is sent automatically.</p>
 <label for="type">Type of report</label>
 <select id="type"><option value="bug">Bug</option><option value="wish">Request / Idea</option><option value="praise">Praise / General</option></select>
 <label for="title">Short title</label><input type="text" id="title" maxlength="100" placeholder="e.g. Redaction fails on page 3">
@@ -118,8 +118,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--vscode-textCodeB
 <label for="contact">Contact for questions <span class="opt">(optional, e.g. email)</span></label><input type="text" id="contact">
 <div id="hints" class="warn" hidden></div>
 <label>What should be included?</label>
-<label class="chk"><input type="checkbox" id="withSystem" checked><span>System data: Werkbank, VS Code and operating system version, AI provider (no key)</span></label>
-<label class="chk" id="errRow"><input type="checkbox" id="withErrors" checked><span>Recent Werkbank error messages (paths and names are masked)</span></label>
+<label class="chk"><input type="checkbox" id="withSystem" checked><span>System data: PDF Workbench, VS Code and operating system version, AI provider (no key)</span></label>
+<label class="chk" id="errRow"><input type="checkbox" id="withErrors" checked><span>Recent PDF Workbench error messages (paths and names are masked)</span></label>
 <label class="chk" id="pdfRow"><input type="checkbox" id="withPdf"><span>Details about the open PDF: page count, size, creator application. Never content or file name.</span></label>
 <div class="note">Document contents, file names and your highlights are <b>never</b> included. A report on GitHub is public: do not enter any private data here. You can add screenshots there; check beforehand that nothing private is visible.</div>
 <label>Preview: exactly this will be sent</label><pre id="prev"></pre>

@@ -1,8 +1,8 @@
 {
   "name": "pdf-workbench",
-  "displayName": "Werkbank – PDF Editor, Redact & OCR with AI",
+  "displayName": "PDF Workbench – Editor, Redact & OCR with AI",
   "description": "Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice (Claude Code, Gemini, Ollama …).",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "publisher": "Juurpa",
   "license": "Apache-2.0",
   "engines": {
@@ -18,7 +18,7 @@
     "customEditors": [
       {
         "viewType": "werkbank.pdfEditor",
-        "displayName": "Werkbank (PDF)",
+        "displayName": "PDF Workbench",
         "selector": [
           {
             "filenamePattern": "*.pdf"
@@ -30,39 +30,39 @@
     "commands": [
       {
         "command": "werkbank.setupClaudeMd",
-        "title": "Werkbank: Add Claude Code hint to CLAUDE.md"
+        "title": "PDF Workbench: Add Claude Code hint to CLAUDE.md"
       },
       {
         "command": "werkbank.setupMcp",
-        "title": "Werkbank: Set up PDF tools for AI (MCP)"
+        "title": "PDF Workbench: Set up PDF tools for AI (MCP)"
       },
       {
         "command": "werkbank.revealData",
-        "title": "Werkbank: Show folder with texts and markings"
+        "title": "PDF Workbench: Show folder with texts and markings"
       },
       {
         "command": "werkbank.chooseAi",
-        "title": "Werkbank: Choose AI provider"
+        "title": "PDF Workbench: Choose AI provider"
       },
       {
         "command": "werkbank.setApiKey",
-        "title": "Werkbank: Set API key"
+        "title": "PDF Workbench: Set API key"
       },
       {
         "command": "werkbank.showLicenses",
-        "title": "Werkbank: Show licenses"
+        "title": "PDF Workbench: Show licenses"
       },
       {
         "command": "werkbank.reportProblem",
-        "title": "Werkbank: Report a problem…"
+        "title": "PDF Workbench: Report a problem…"
       },
       {
         "command": "werkbank.sendFeedback",
-        "title": "Werkbank: Send feedback…"
+        "title": "PDF Workbench: Send feedback…"
       }
     ],
     "configuration": {
-      "title": "Werkbank",
+      "title": "PDF Workbench",
       "properties": {
         "werkbank.dataFolder": {
           "type": "string",

@@ -18,7 +18,7 @@ async function writeFile(uri, content) {
 function nonce() { let t = ''; const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < 32; i++) t += c[Math.floor(Math.random() * c.length)]; return t; }
 
 const ocrJobs = new Map();
-const panels = new Set(); // open Werkbank views, so that switching the AI shows up everywhere immediately
+const panels = new Set(); // open PDF Workbench views, so that switching the AI shows up everywhere immediately
 
 function aiInfo(webview, mediaUri) {
   const d = ai.describe();
@@ -158,11 +158,11 @@ class PdfEditorProvider {
         }
       } catch (e) {
         if (e && e.code === 'CONFIG') { // missing setting: not a program error, so no report button
-          vscode.window.showWarningMessage('Werkbank: ' + e.message, 'Open Settings', 'Choose Another AI').then((c) => { if (c === 'Open Settings') vscode.commands.executeCommand('workbench.action.openSettings', 'werkbank.ai'); else if (c) vscode.commands.executeCommand('werkbank.chooseAi'); });
+          vscode.window.showWarningMessage('PDF Workbench: ' + e.message, 'Open Settings', 'Choose Another AI').then((c) => { if (c === 'Open Settings') vscode.commands.executeCommand('workbench.action.openSettings', 'werkbank.ai'); else if (c) vscode.commands.executeCommand('werkbank.chooseAi'); });
           return;
         }
         fb.record('Extension', e);
-        vscode.window.showErrorMessage('Werkbank: ' + (e.message || e), 'Report Problem').then((c) => { if (c) fb.open(this.ctx, { type: 'bug', what: String(e.message || e) }); });
+        vscode.window.showErrorMessage('PDF Workbench: ' + (e.message || e), 'Report Problem').then((c) => { if (c) fb.open(this.ctx, { type: 'bug', what: String(e.message || e) }); });
       }
     });
   }
@@ -229,7 +229,7 @@ function activate(ctx) {
       env: { ELECTRON_RUN_AS_NODE: '1', WERKBANK_ROOT: ws.uri.fsPath, WERKBANK_DATA: cfg().get('dataFolder') || '_werkbank' }
     };
     await writeFile(uri, Buffer.from(JSON.stringify(json, null, 2) + '\n', 'utf8'));
-    vscode.window.showInformationMessage('PDF tools for the AI are set up (.mcp.json). In Claude Code, approve the “werkbank” server once (command /mcp). Run this command again after a Werkbank update.', 'Open File').then((pick) => { if (pick) vscode.commands.executeCommand('vscode.open', uri); });
+    vscode.window.showInformationMessage('PDF tools for the AI are set up (.mcp.json). In Claude Code, approve the “werkbank” server once (command /mcp). Run this command again after a PDF Workbench update.', 'Open File').then((pick) => { if (pick) vscode.commands.executeCommand('vscode.open', uri); });
   }));
 
   ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.internal.redact', (b64, boxes) => redactBytes(ctx, Buffer.from(b64, 'base64'), boxes).then((r) => ({ ...r, bytes: Buffer.from(r.bytes).toString('base64') }))));
@@ -252,7 +252,7 @@ function activate(ctx) {
     if (!ws) return;
     const uri = vscode.Uri.joinPath(ws.uri, cfg().get('dataFolder') || '_werkbank');
     if (await exists(uri)) vscode.commands.executeCommand('revealInExplorer', uri);
-    else vscode.window.showInformationMessage('No Werkbank data yet. Open a PDF and highlight something.');
+    else vscode.window.showInformationMessage('No PDF Workbench data yet. Open a PDF and highlight something.');
   }));
   return { registerProvider: ai.registerProvider };
 }

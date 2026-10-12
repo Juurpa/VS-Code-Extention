@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.1
+- Product name in the interface, commands and Marketplace title is now "PDF Workbench" (command IDs and settings keep the `werkbank.` prefix).
+
 ## 0.8.0
 - Complete English interface, messages, documentation and AI tool descriptions.
 - New icon and branding.

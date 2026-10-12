@@ -1,5 +1,5 @@
 'use strict';
-// AI providers for Werkbank. Everything here is replaceable:
+// AI providers for PDF Workbench. Everything here is replaceable:
 //  - "claude-code":  hands the prompt to Claude Code (uses your subscription, reads the files itself)
 //  - "zwischenablage": copies the prompt; you paste it into any AI
 //  - "openai":       any service with an OpenAI-compatible interface (OpenAI, Gemini, OpenRouter, Ollama, LM Studio …)
@@ -16,7 +16,7 @@ const RESULT_FILE = { 'summary-doc': 'summary.md', learn: 'study-notes.md', quiz
 const providers = new Map();
 
 /** provider: { id, label, shortName?, icon?, description?, inline: boolean, run(prompt, ctx) -> Promise<string|void> }
- *  shortName: name on the button in Werkbank (e.g. "Gemini"); icon: data URI (PNG/SVG) or path under media/ for the icon next to it.
+ *  shortName: name on the button in PDF Workbench (e.g. "Gemini"); icon: data URI (PNG/SVG) or path under media/ for the icon next to it.
  *  inline=false: the provider reads the files itself (like Claude Code); inline=true: the text is inserted into the prompt
  *  and the returned answer is written to a file. */
 function registerProvider(p) {
@@ -91,7 +91,7 @@ async function runTask(ctx, kind, { relPdf, dataFolder, page, selection, count, 
   if (p.handoff) { await p.run(full, { kind }); return; }
 
   const ac = new AbortController();
-  const out = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Werkbank: ${p.label} is working …`, cancellable: true }, async (_pg, tok) => {
+  const out = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `PDF Workbench: ${p.label} is working …`, cancellable: true }, async (_pg, tok) => {
     tok.onCancellationRequested(() => ac.abort());
     return await p.run(full, { kind, signal: ac.signal });
   });
@@ -111,7 +111,7 @@ async function runTask(ctx, kind, { relPdf, dataFolder, page, selection, count, 
 async function pickProvider() {
   const cur = cfg().get('ai.provider') || 'claude-code';
   const items = [...providers.values()].map((p) => ({ label: (p.id === cur ? '$(check) ' : '') + p.label, description: p.id, detail: p.description, id: p.id }));
-  const sel = await vscode.window.showQuickPick(items, { title: 'Choose the AI for Werkbank' });
+  const sel = await vscode.window.showQuickPick(items, { title: 'Choose the AI for PDF Workbench' });
   if (sel) await cfg().update('ai.provider', sel.id, vscode.ConfigurationTarget.Global);
 }
 
