@@ -18,7 +18,7 @@
 - Bildsignatur ist nur eine einfache Signatur (rechtlich keine Schriftform).
 - pdf.js-Schriften für CJK können im Schwärzen auf den Bild-Fallback gehen.
 - MCP kann noch keine Markierungen/Kommentare schreiben.
-- Claude-Symbol: niedrig aufgelöst, dunkler Hintergrund; vor Veröffentlichung Erlaubnis/Markenrichtlinie klären.
+- Claude-Symbol durch eigenes neutrales Symbol (media/icons/ai.png) ersetzt.
 - Feedback-Ziele (`werkbank.feedback.githubRepo`, `.email`) nicht hinterlegt.
 
 ## Backlog (Reihenfolge)

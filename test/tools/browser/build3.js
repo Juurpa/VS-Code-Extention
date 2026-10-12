@@ -3,7 +3,7 @@ const cfg={pdfUri:'http://localhost:8765/testdata/scan.pdf',mediaUri:'http://loc
 const mock=`<script>window.__msgs=[];
 const toB=b=>{let s='';for(let i=0;i<b.length;i+=32768)s+=String.fromCharCode.apply(null,b.subarray(i,i+32768));return btoa(s)};
 window.acquireVsCodeApi=()=>({postMessage:async m=>{window.__msgs.push(m);const r=x=>setTimeout(()=>postMessage({type:'reply',rid:m.rid,...x},'*'),20);
- if(m.type==='ready')setTimeout(()=>postMessage({type:'init',ann:{},hasText:false,ai:{id:'claude-code',name:'Claude',icon:'http://localhost:8765/lernmodus-vscode/media/icons/claude.png'}},'*'),50);
+ if(m.type==='ready')setTimeout(()=>postMessage({type:'init',ann:{},hasText:false,ai:{id:'claude-code',name:'Claude',icon:'http://localhost:8765/lernmodus-vscode/media/icons/ai.png'}},'*'),50);
  else if(m.type==='pickPdfs'){const b=new Uint8Array(await (await fetch('${cfg.pdfUri}')).arrayBuffer());r({files:[{name:'zweite.pdf',b64:toB(b)}]})}
  else if(m.type==='redact'){const rr=await fetch('http://localhost:9912/redact',{method:'POST',body:JSON.stringify({b64:m.b64,boxes:m.boxes})});r(await rr.json())}
  else if(m.type==='ocrScan'){const rr=await fetch('http://localhost:9913/scan',{method:'POST',body:JSON.stringify({b64:m.b64})});r(await rr.json())}
