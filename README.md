@@ -1,4 +1,6 @@
-# Werkbank
+# PDF Workbench (Werkbank)
+
+Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice. Everything runs locally; nothing is sent without your approval. (Deutsch siehe unten.)
 
 Eine Arbeitsumgebung für Dokumente in VS Code. Alles liegt als normale Datei im Projektordner, die KI deiner Wahl kennt alles und du behältst die Kontrolle.
 
@@ -18,8 +20,17 @@ Befehl „Werkbank: KI-Anbieter wählen“: Claude Code (Standard), nur kopieren
 
 ## Für Entwickler
 ```js
-const api = vscode.extensions.getExtension("paul.werkbank").exports;
+const api = vscode.extensions.getExtension("juurpa.pdf-workbench").exports;
 api.registerProvider({ id: "mein", label: "Mein Anbieter", run: async (prompt, { signal }) => "Antwort" });
 ```
 
 Der Text und die Markierungen jeder PDF liegen unter `_werkbank/<pdf-pfad>/` (text.md, markierungen.md). „Werkbank: Claude Code Hinweis in CLAUDE.md eintragen“ sorgt dafür, dass Claude Code sie zuerst liest.
+
+## Datenschutz
+- Alles Wichtige läuft lokal auf deinem Rechner: PDF-Bearbeitung, Schwärzen und Texterkennung (OCR) brauchen keine Internetverbindung.
+- Die Werkbank sendet von sich aus nichts. Fehlerberichte und Feedback entstehen nur nach deiner ausdrücklichen Freigabe, werden vorher angezeigt und enthalten nie Dokumentinhalte.
+- Nur wenn du selbst eine KI wählst (z. B. Claude Code oder eine OpenAI-kompatible Schnittstelle), gehen Texte an diesen Anbieter. Bei sensiblen Unterlagen wähle „nur kopieren“ oder ein lokales Modell (z. B. Ollama).
+- API-Schlüssel liegen im Schlüsselbund von VS Code (SecretStorage), nicht in Dateien.
+
+## Hinweis zur Unterschrift
+Die Bildsignatur ist nur eine einfache Signatur und rechtlich keine Schriftform.

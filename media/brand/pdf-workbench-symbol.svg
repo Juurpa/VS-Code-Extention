@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="PDF Workbench">
+  <title>PDF Workbench</title>
+  <rect width="1024" height="1024" rx="232" fill="#F7B500"/>
+  <!-- Seite mit Eselsohr -->
+  <path d="M292 168 H600 L752 320 V820 a36 36 0 0 1 -36 36 H292 a36 36 0 0 1 -36 -36 V204 a36 36 0 0 1 36 -36 Z" fill="#FFFFFF" stroke="#14181C" stroke-width="28" stroke-linejoin="round"/>
+  <path d="M600 168 V284 a36 36 0 0 0 36 36 H752" fill="#D3EEF0" stroke="#14181C" stroke-width="28" stroke-linejoin="round"/>
+  <!-- Textzeilen -->
+  <rect x="348" y="400" width="190" height="34" rx="17" fill="#14181C"/>
+  <rect x="348" y="470" width="300" height="34" rx="17" fill="#14181C"/>
+  <!-- Schwärzungsbalken -->
+  <rect x="348" y="540" width="300" height="56" rx="12" fill="#14181C"/>
+  <!-- OCR-Zeile mit Schaltkreis-Punkten -->
+  <path d="M348 690 H500 L540 650 H600" fill="none" stroke="#129AA3" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="348" cy="690" r="22" fill="#129AA3"/>
+  <circle cx="620" cy="650" r="22" fill="#129AA3"/>
+  <rect x="348" y="760" width="230" height="34" rx="17" fill="#14181C"/>
+</svg>

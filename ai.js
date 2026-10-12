@@ -39,7 +39,7 @@ async function openClaude(promptText) {
 
 function registerBuiltins(ctx) {
   registerProvider({
-    id: 'claude-code', label: 'Claude Code (VS Code)', shortName: 'Claude', icon: 'icons/claude.png', description: 'Nutzt dein Claude-Abo. Claude liest die Dateien im Projekt selbst.',
+    id: 'claude-code', label: 'Claude Code (VS Code)', shortName: 'Claude', icon: 'icons/ai.png', description: 'Nutzt dein Claude-Abo. Claude liest die Dateien im Projekt selbst.',
     inline: false, run: async (prompt) => { await openClaude(prompt); }
   });
   registerProvider({
