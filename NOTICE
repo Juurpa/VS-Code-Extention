@@ -1,0 +1,7 @@
+Werkbank
+Copyright 2026 The Werkbank authors
+
+Dieses Produkt enthält Software von Dritten. Die Lizenzen stehen in THIRD_PARTY_LICENSES.md.
+Includes pdf.js (Apache-2.0, Mozilla Foundation), pdf-lib (MIT, Andrew Dillon), PDFium (Apache-2.0, The PDFium Authors) via @hyzyla/pdfium (MIT) Tesseract OCR (Apache-2.0, Tesseract-Projekt) via tesseract.js (Apache-2.0) mit den Sprachdaten tessdata_best, and further components listed there.
+
+Claude und Claude Code sind Produkte von Anthropic. Die Werkbank enthält sie nicht, sondern spricht sie nur an, wenn der Nutzer sie selbst installiert hat.

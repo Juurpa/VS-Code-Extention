@@ -1,2 +1,25 @@
-# VS-Code-Extention
+# Werkbank
 
+Eine Arbeitsumgebung für Dokumente in VS Code. Alles liegt als normale Datei im Projektordner, die KI deiner Wahl kennt alles und du behältst die Kontrolle.
+
+## PDF
+- Lesen, markieren, kommentieren, zeichnen, Karteikarten aus Markierungen
+- Seiten drehen, löschen, duplizieren, umsortieren (Ziehen), extrahieren, einfügen
+- Zusammenfügen, aufteilen, zuschneiden, Seitenzahlen, komprimieren
+- Schwärzen mit erhaltener Struktur: die Buchstaben unter dem Balken werden aus dem Seitencode gelöscht (Schrift, Layout, Links, Lesezeichen bleiben wie im Original), danach wird die Datei geprüft (bei Scans zuerst Texterkennung); nur wenn das nicht sicher geht (z. B. Foto unter dem Balken), wird die Seite als Bild mit Textlayer neu aufgebaut
+- Texterkennung (OCR) für Scans, offline: Deutsch und Englisch, erkennt gedrehte Seiten, Tabellen und Formulare; das Bild bleibt unverändert, der Text liegt unsichtbar dahinter (durchsuchbar, markierbar, schwärzbar). Handschrift und Formeln werden nicht zuverlässig erkannt
+- Unterschrift (einfache Signatur)
+- Fehler melden und Feedback geben (Befehl oder Werkzeuge-Menü): der Bericht enthält nie Dokumentinhalte, wird vor dem Senden angezeigt und erst nach deiner Freigabe verschickt
+- PDF-Werkzeuge für die KI (MCP): Befehl „Werkbank: PDF-Werkzeuge für die KI einrichten“ schreibt eine `.mcp.json`; Claude Code kann dann lesen, suchen, schwärzen, zusammenfügen, aufteilen, drehen, zuschneiden und mehr
+- Rückgängig/Wiederholen auch für Seiten-Änderungen
+
+## KI nach Wahl
+Befehl „Werkbank: KI-Anbieter wählen“: Claude Code (Standard), nur kopieren, oder jede OpenAI-kompatible Schnittstelle (OpenAI, Gemini, OpenRouter, Ollama lokal). Endpunkt und Modell stehen in den Einstellungen, der Schlüssel liegt im Schlüsselbund von VS Code.
+
+## Für Entwickler
+```js
+const api = vscode.extensions.getExtension("paul.werkbank").exports;
+api.registerProvider({ id: "mein", label: "Mein Anbieter", run: async (prompt, { signal }) => "Antwort" });
+```
+
+Der Text und die Markierungen jeder PDF liegen unter `_werkbank/<pdf-pfad>/` (text.md, markierungen.md). „Werkbank: Claude Code Hinweis in CLAUDE.md eintragen“ sorgt dafür, dass Claude Code sie zuerst liest.

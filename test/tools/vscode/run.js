@@ -1,0 +1,2 @@
+const {runTests}=require('@vscode/test-electron');
+runTests({vscodeExecutablePath:'/tmp/vsc/.vscode-test/vscode-linux-x64-1.141.0/code',extensionDevelopmentPath:'/tmp/inst/extension',extensionTestsPath:'/tmp/vsc/tests/index.js',launchArgs:['/tmp/vsc/ws','--no-sandbox','--disable-gpu','--user-data-dir=/tmp/vsc/ud','--disable-extensions']}).then(()=>console.log('done')).catch(e=>console.log('fail',e.message));

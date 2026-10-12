@@ -1,0 +1,20 @@
+const {chromium}=require('/tmp/npmwork/node_modules/playwright-core');
+(async()=>{
+const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
+const p=await b.newPage({viewport:{width:1300,height:850}});
+const errs=[];p.on('pageerror',e=>errs.push('PE '+e.message));p.on('console',m=>{if(m.type()==='error'&&!/404/.test(m.text()))errs.push('CE '+m.text())});
+await p.goto('http://localhost:8765/lernmodus-vscode/harness.html');
+await p.waitForSelector('.page canvas',{timeout:15000});await p.waitForTimeout(1500);
+const before=(await p.evaluate(()=>window.__werkbank.getAllTexts()))[0];
+await p.click('#tTools');await p.click('#menuPop button:has-text("Schwärzen")');
+const pg=await (await p.$('.page')).boundingBox();
+await p.mouse.move(pg.x+60,pg.y+60);await p.mouse.down();await p.mouse.move(pg.x+400,pg.y+120,{steps:4});await p.mouse.up();
+console.log('redBoxes',await p.$$eval('.redBox',e=>e.length));
+await p.click('button:has-text("Schwärzung anwenden")');await p.waitForTimeout(6000);
+const after=(await p.evaluate(()=>window.__werkbank.getAllTexts()))[0];
+console.log('toast:',await p.textContent('#toast'));
+console.log('BEFORE:',JSON.stringify(before).slice(0,200));
+console.log('AFTER :',JSON.stringify(after).slice(0,200));
+await p.screenshot({path:'/tmp/h/red.png'});
+console.log(errs.join('\n')||'no errors');
+await b.close();})();
