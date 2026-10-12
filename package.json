@@ -3,7 +3,7 @@
   "displayName": "Werkbank – PDF Editor, Redact & OCR with AI",
   "description": "Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice (Claude Code, Gemini, Ollama …). Deutsch: PDF lesen, markieren, bearbeiten, schwärzen, unterschreiben – lokal und mit KI.",
   "version": "0.7.5",
-  "publisher": "juurpa",
+  "publisher": "Juurpa",
   "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.85.0"
