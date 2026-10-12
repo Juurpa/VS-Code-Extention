@@ -1,7 +1,7 @@
 {
-  "name": "werkbank",
-  "displayName": "Werkbank – Dokumente bearbeiten mit KI",
-  "description": "Arbeitsumgebung für Dokumente in VS Code: PDF lesen, markieren, bearbeiten, zusammenfügen, aufteilen, schwärzen, unterschreiben. Die KI deiner Wahl (Claude Code, Gemini, Ollama …) kennt alle Dateien.",
+  "name": "pdf-workbench",
+  "displayName": "Werkbank – PDF Editor, Redact & OCR with AI",
+  "description": "Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice (Claude Code, Gemini, Ollama …). Deutsch: PDF lesen, markieren, bearbeiten, schwärzen, unterschreiben – lokal und mit KI.",
   "version": "0.7.5",
   "publisher": "paul",
   "license": "Apache-2.0",
@@ -119,20 +119,21 @@
   },
   "keywords": [
     "pdf",
-    "schwärzen",
+    "pdf editor",
     "redact",
     "ocr",
     "mcp",
+    "schwärzen",
     "claude",
-    "dokumente",
-    "unterschrift"
+    "documents",
+    "signature"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Juurpa/VS-Code-Extention.git"
+    "url": "https://github.com/Juurpa/pdf-workbench.git"
   },
   "bugs": {
-    "url": "https://github.com/Juurpa/VS-Code-Extention/issues"
+    "url": "https://github.com/Juurpa/pdf-workbench/issues"
   },
-  "homepage": "https://github.com/Juurpa/VS-Code-Extention#readme"
+  "homepage": "https://github.com/Juurpa/pdf-workbench#readme"
 }

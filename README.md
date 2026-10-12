@@ -1,4 +1,6 @@
-# Werkbank
+# PDF Workbench (Werkbank)
+
+Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice. Everything runs locally; nothing is sent without your approval. (Deutsch siehe unten.)
 
 Eine Arbeitsumgebung für Dokumente in VS Code. Alles liegt als normale Datei im Projektordner, die KI deiner Wahl kennt alles und du behältst die Kontrolle.
 
@@ -18,7 +20,7 @@ Befehl „Werkbank: KI-Anbieter wählen“: Claude Code (Standard), nur kopieren
 
 ## Für Entwickler
 ```js
-const api = vscode.extensions.getExtension("paul.werkbank").exports;
+const api = vscode.extensions.getExtension("paul.pdf-workbench").exports;
 api.registerProvider({ id: "mein", label: "Mein Anbieter", run: async (prompt, { signal }) => "Antwort" });
 ```
 
