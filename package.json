@@ -9,8 +9,8 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Education",
-    "Other"
+    "Other",
+    "Education"
   ],
   "icon": "media/icon.png",
   "main": "./extension.js",
@@ -116,5 +116,23 @@
   "devDependencies": {
     "@tesseract.js-data/deu": "^1.0.0",
     "@tesseract.js-data/eng": "^1.0.0"
-  }
+  },
+  "keywords": [
+    "pdf",
+    "schwärzen",
+    "redact",
+    "ocr",
+    "mcp",
+    "claude",
+    "dokumente",
+    "unterschrift"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Juurpa/VS-Code-Extention.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Juurpa/VS-Code-Extention/issues"
+  },
+  "homepage": "https://github.com/Juurpa/VS-Code-Extention#readme"
 }

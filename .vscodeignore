@@ -51,3 +51,8 @@ test/**
 !node_modules/webidl-conversions/LICENSE.md
 !node_modules/regenerator-runtime/LICENSE
 !node_modules/wasm-feature-detect/LICENSE
+# Interne Entwicklungsdateien nicht ins Paket
+CLAUDE.md
+docs/**
+.gitignore
+.gitattributes
