@@ -99,7 +99,7 @@ async function handle(msg) {
   const { id, method, params } = msg;
   if (id === undefined) return; // notification
   try {
-    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'werkbank', version: '0.7.5' }, instructions: INSTRUCTIONS } });
+    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'werkbank', version: '0.8.0' }, instructions: INSTRUCTIONS } });
     if (method === 'ping') return send({ jsonrpc: '2.0', id, result: {} });
     if (method === 'tools/list') return send({ jsonrpc: '2.0', id, result: { tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) } });
     if (method === 'tools/call') {
