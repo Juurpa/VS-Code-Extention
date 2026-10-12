@@ -1,5 +1,5 @@
-// Reine PDF-Funktionen (ohne Oberfläche). Läuft in VS Code, im Browser und in Node.
-// Alle Seitenindizes sind 0-basiert. Eingabe und Ausgabe: Uint8Array.
+// Pure PDF functions (no UI). Runs in VS Code, in the browser and in Node.
+// All page indices are 0-based. Input and output: Uint8Array.
 import { PDFDocument, StandardFonts, rgb, degrees } from './lib/pdf-lib.esm.min.js';
 
 const load = (bytes) => PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
@@ -15,13 +15,13 @@ export async function rotate(bytes, idxs, delta) {
 
 export async function remove(bytes, idxs) {
   const doc = await load(bytes);
-  if (idxs.length >= doc.getPageCount()) throw new Error('Es muss mindestens eine Seite übrig bleiben.');
+  if (idxs.length >= doc.getPageCount()) throw new Error('At least one page must remain.');
   [...new Set(idxs)].sort((a, b) => b - a).forEach((i) => doc.removePage(i));
   return save(doc);
 }
 
-/** order[neu] = alt. Doppelte Einträge duplizieren die Seite. Auch zum Extrahieren. */
-/** Übernimmt Titel, Autor, Thema und Stichwörter in ein neu erzeugtes Dokument. */
+/** order[new] = old. Duplicate entries duplicate the page. Also used for extracting. */
+/** Copies title, author, subject and keywords into a newly created document. */
 function carryMeta(src, out) {
   const t = src.getTitle(), a = src.getAuthor(), s = src.getSubject(), k = src.getKeywords();
   if (t) out.setTitle(t); if (a) out.setAuthor(a); if (s) out.setSubject(s); if (k) out.setKeywords([k]);
@@ -36,7 +36,7 @@ export async function reorder(bytes, order) {
 }
 export const extract = reorder;
 
-/** Fügt alle Seiten (oder otherIdxs) von other hinter Position `at` (0..n) ein. */
+/** Inserts all pages (or otherIdxs) of other after position `at` (0..n). */
 export async function insert(bytes, other, at, otherIdxs) {
   const doc = await load(bytes), src = await load(other);
   const idxs = otherIdxs || src.getPageIndices();
@@ -51,22 +51,22 @@ export async function merge(list) {
   return save(out);
 }
 
-/** "1-3, 5, 7-" -> [[0,2],[4,4],[6,n-1]]; wirft bei Fehlern */
+/** "1-3, 5, 7-" -> [[0,2],[4,4],[6,n-1]]; throws on errors */
 export function parseRanges(str, n) {
   const out = [];
   for (const part of String(str).split(/[,;\s]+/).filter(Boolean)) {
     const m = part.match(/^(\d*)\s*-\s*(\d*)$/) || part.match(/^(\d+)$/);
-    if (!m) throw new Error(`„${part}“ ist kein gültiger Bereich (Beispiel: 1-3, 5, 7-9).`);
+    if (!m) throw new Error(`"${part}" is not a valid range (example: 1-3, 5, 7-9).`);
     let a = m[1] === '' ? 1 : +m[1], b = m.length === 2 ? a : (m[2] === '' ? n : +m[2]);
-    if (a < 1 || b < a || b > n) throw new Error(`Bereich „${part}“ liegt außerhalb von 1–${n}.`);
+    if (a < 1 || b < a || b > n) throw new Error(`Range "${part}" is outside 1–${n}.`);
     out.push([a - 1, b - 1]);
   }
-  if (!out.length) throw new Error('Kein Bereich angegeben.');
+  if (!out.length) throw new Error('No range given.');
   return out;
 }
 export const rangeIdxs = ([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 
-/** mode: {ranges:"1-3,5"} oder {every:N} -> [{label, bytes}] */
+/** mode: {ranges:"1-3,5"} or {every:N} -> [{label, bytes}] */
 export async function split(bytes, mode) {
   const n = await pageCount(bytes), ranges = [];
   if (mode.every) for (let a = 0; a < n; a += mode.every) ranges.push([a, Math.min(n - 1, a + mode.every - 1)]);
@@ -76,19 +76,19 @@ export async function split(bytes, mode) {
   return out;
 }
 
-/** Ränder in Punkt (1 mm = 2,835 pt), bezogen auf die angezeigte (ggf. gedrehte) Seite. */
+/** Margins in points (1 mm = 2.835 pt), relative to the displayed (possibly rotated) page. */
 export async function crop(bytes, { top = 0, right = 0, bottom = 0, left = 0 }, idxs) {
   const doc = await load(bytes), pages = doc.getPages();
   (idxs || pages.map((_, i) => i)).forEach((i) => {
     const p = pages[i]; if (!p) return;
     const r = ((p.getRotation().angle % 360) + 360) % 360, b = p.getCropBox() || p.getMediaBox();
-    // Ränder der Anzeige auf ungedrehte PDF-Koordinaten abbilden
+    // Map the displayed margins to unrotated PDF coordinates
     const m = r === 0 ? { l: left, r: right, t: top, b: bottom }
       : r === 90 ? { l: bottom, r: top, t: left, b: right }
       : r === 180 ? { l: right, r: left, t: bottom, b: top }
       : { l: top, r: bottom, t: right, b: left };
     const w = b.width - m.l - m.r, h = b.height - m.t - m.b;
-    if (w < 20 || h < 20) throw new Error('Die Ränder sind zu groß für die Seite.');
+    if (w < 20 || h < 20) throw new Error('The margins are too large for the page.');
     p.setCropBox(b.x + m.l, b.y + m.b, w, h);
   });
   return save(doc);
@@ -102,7 +102,7 @@ export async function numberPages(bytes, { format = '{n}', pos = 'bottom-center'
     const text = format.replace(/\{n\}/g, String(start + i)).replace(/\{N\}/g, String(N + start - 1)).replace(/[^\x20-\x7E\xA0-\xFF]/g, '?');
     const b = p.getCropBox() || p.getMediaBox(), w = font.widthOfTextAtSize(text, size);
     const r = ((p.getRotation().angle % 360) + 360) % 360;
-    // Zielpunkt in der Anzeige (u,v in pt von links/oben) -> PDF-Koordinaten
+    // Target point in the display (u,v in pt from left/top) -> PDF coordinates
     const dw = r % 180 ? b.height : b.width, dh = r % 180 ? b.width : b.height;
     const [vert, hor] = pos.split('-');
     const du = hor === 'left' ? margin : hor === 'right' ? dw - margin - w : (dw - w) / 2;
@@ -113,8 +113,8 @@ export async function numberPages(bytes, { format = '{n}', pos = 'bottom-center'
   return save(doc);
 }
 
-/** Ersetzt jede Seite durch ein Bild (für starkes Komprimieren und Schwärzen).
- *  items: [{ index, jpeg|png: Uint8Array, width, height (Seitengröße in pt) }] – übrige Seiten bleiben unverändert. */
+/** Replaces each page with an image (for strong compression and redaction).
+ *  items: [{ index, jpeg|png: Uint8Array, width, height (page size in pt) }] – other pages stay unchanged. */
 export async function replaceWithImages(bytes, items) {
   const doc = await load(bytes);
   for (const it of items) {
@@ -123,23 +123,23 @@ export async function replaceWithImages(bytes, items) {
     const page = doc.insertPage(it.index, [it.width, it.height]);
     page.drawImage(img, { x: 0, y: 0, width: it.width, height: it.height });
     doc.removePage(it.index + 1);
-    void rot; // das Bild ist schon so gerendert, wie die Seite angezeigt wird
+    void rot; // the image is already rendered the way the page is displayed
   }
   return save(doc);
 }
 
-/** Leichtes Komprimieren: Struktur neu schreiben, Metadaten und unbenutzte Objekte weglassen. */
+/** Light compression: rewrite the structure, drop metadata and unused objects. */
 export async function optimize(bytes) {
   const doc = await load(bytes);
   doc.setTitle(doc.getTitle() || ''); doc.setProducer(''); doc.setCreator('');
   return save(doc);
 }
 
-// ------------------------------------------------------------------ Markierungen mitführen
+// ------------------------------------------------------------------ Carry annotations along
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const nid = () => Math.random().toString(36).slice(2, 10);
 
-/** order[neu] = alt (0-basiert). Gibt neue ann zurück; Duplikate bekommen neue IDs. */
+/** order[new] = old (0-based). Returns new ann; duplicates get new IDs. */
 export function annReorder(ann, order) {
   const out = {}, used = new Set();
   order.forEach((old, i) => {
@@ -151,7 +151,7 @@ export function annReorder(ann, order) {
   return out;
 }
 
-/** Punkt (u,v) in Anzeige-Koordinaten (0..1) nach Drehung um delta Grad im Uhrzeigersinn. */
+/** Point (u,v) in display coordinates (0..1) after rotating by delta degrees clockwise. */
 export function rotPoint([u, v], delta) {
   const d = ((delta % 360) + 360) % 360;
   return d === 90 ? [1 - v, u] : d === 180 ? [1 - u, 1 - v] : d === 270 ? [v, 1 - u] : [u, v];
@@ -171,7 +171,7 @@ export function annRotate(ann, idxs, delta) {
   return ann;
 }
 
-/** Normalisierte Anzeige-Koordinaten -> PDF-Koordinaten (Punkt) für eine Seite mit Drehung r. */
+/** Normalized display coordinates -> PDF coordinates (points) for a page with rotation r. */
 export function toPdf(u, v, W, H, r) {
   r = ((r % 360) + 360) % 360;
   return r === 90 ? [v * W, u * H] : r === 180 ? [(1 - u) * W, v * H] : r === 270 ? [(1 - v) * W, (1 - u) * H] : [u * W, H - v * H];

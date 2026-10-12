@@ -1,11 +1,11 @@
-// Text mit exakten Zeichenpositionen, Rendern und Schwärzen (PDFium als WebAssembly, ohne native Teile).
+// Text with exact character positions, rendering and redaction (PDFium as WebAssembly, no native parts).
 import { PDFiumLibrary } from '@hyzyla/pdfium';
 import zlib from 'node:zlib';
 
 let libP;
 export const getLib = () => (libP ||= PDFiumLibrary.init());
 
-/** Öffnet ein PDF. close() nicht vergessen. */
+/** Opens a PDF. Do not forget close(). */
 export async function openPdf(bytes) {
   const lib = await getLib();
   const doc = await lib.loadDocument(bytes);
@@ -14,12 +14,12 @@ export async function openPdf(bytes) {
 
 const f64 = (m, ptr, n) => Array.from({ length: n }, (_, i) => m.HEAPF64[(ptr >> 3) + i]);
 
-/** Zeichen einer Seite mit Rechtecken in Pixeln des Bildes bei `scale` (1 = 72 dpi, Ursprung oben links, Drehung berücksichtigt). */
+/** Characters of a page with rectangles in image pixels at `scale` (1 = 72 dpi, origin top left, rotation taken into account). */
 export function pageChars(lib, page, scale = 1) {
   const m = lib.module, size = page.getSize({ scale });
   const W = size.width, H = size.height;
   const tp = m._FPDFText_LoadPage(page.pageIdx);
-  if (!tp) throw new Error('Seite hat keinen lesbaren Text.');
+  if (!tp) throw new Error('Page has no readable text.');
   const buf = m.wasmExports.malloc(64);
   try {
     const n = m._FPDFText_CountChars(tp);
@@ -46,14 +46,14 @@ export function pageChars(lib, page, scale = 1) {
       }
       chars.push({ ch: cp ? String.fromCodePoint(cp) : '', rect, gen, origin, fontSize: fs });
     }
-    // Text als String + Zuordnung Stringposition -> Zeichenindex
+    // text as string + mapping string position -> character index
     let text = ''; const map = [];
     chars.forEach((c, i) => { for (let k = 0; k < c.ch.length; k++) map.push(i); text += c.ch; });
     return { text, map, chars, width: W, height: H };
   } finally { m.wasmExports.free(buf); m._FPDFText_ClosePage(tp); }
 }
 
-/** Findet Treffer (Regex mit g-Flag) im Seitentext und liefert Pixel-Rechtecke je Treffer. */
+/** Finds matches (regex with g flag) in the page text and returns pixel rectangles per match. */
 export function findMatches(pc, regex) {
   const out = [];
   regex.lastIndex = 0;
@@ -68,7 +68,7 @@ export function findMatches(pc, regex) {
   return out;
 }
 
-/** Fasst Rechtecke derselben Zeile zu einem Balken zusammen und vergrößert ihn, damit Ober-/Unterlängen und Ränder der Buchstaben sicher abgedeckt sind. */
+/** Merges rectangles of the same line into one bar and enlarges it so that ascenders, descenders and letter edges are safely covered. */
 export function mergeRects(rects, grow = 0.2) {
   let r = rects.map((a) => a.slice());
   const near = (a, b) => { const g = 0.6 * Math.max(Math.min(a[3] - a[1], a[2] - a[0]), Math.min(b[3] - b[1], b[2] - b[0])) + 1;
@@ -82,7 +82,7 @@ export function mergeRects(rects, grow = 0.2) {
   return r.map(([a, b, c, d]) => { const p = Math.max(2, grow * Math.min(c - a, d - b)); return [a - p, b - p, c + p, d + p]; });
 }
 
-/** Zeichenrechtecke eines Treffers (in Lesereihenfolge) -> ein Balken je Zeile (auch senkrecht), leicht vergrößert. */
+/** Character rectangles of a match (in reading order) -> one bar per line (also vertical), slightly enlarged. */
 export function lineBars(rects, grow = 0.2) {
   const runs = []; let cur = null;
   const w = (r) => r[2] - r[0], h = (r) => r[3] - r[1], cx = (r) => (r[0] + r[2]) / 2, cy = (r) => (r[1] + r[3]) / 2;
@@ -98,13 +98,13 @@ export function lineBars(rects, grow = 0.2) {
   return runs.map(([a, b, c, d]) => { const p = Math.max(2, grow * Math.min(c - a, d - b)); return [a - p, b - p, c + p, d + p]; });
 }
 
-/** Rendert die Seite als RGBA-Bild. */
+/** Renders the page as an RGBA image. */
 export async function renderPage(page, scale) {
   const r = await page.render({ scale, render: 'bitmap', renderFormFields: true });
   return { rgba: r.data, width: r.width, height: r.height, ptW: r.originalWidth, ptH: r.originalHeight };
 }
 
-/** Malt schwarze Rechtecke (Pixel) in ein RGBA-Bild – das Bild enthält danach keine Information mehr darunter. */
+/** Paints black rectangles (pixels) into an RGBA image – afterwards the image holds no information underneath. */
 export function blackout(img, rects, pad = 2) {
   const { rgba, width: W, height: H } = img;
   for (const [x0, y0, x1, y1] of rects) {
@@ -114,7 +114,7 @@ export function blackout(img, rects, pad = 2) {
   }
 }
 
-// ---- PNG (RGB, ohne Zusatzpakete)
+// ---- PNG (RGB, no extra packages)
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
 function chunk(type, data) {

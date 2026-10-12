@@ -104,7 +104,7 @@ button:disabled{opacity:.35;cursor:default}
 .mrow{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:4px 6px}
 .mname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* ---- Werkbank: Feinschliff ---- */
+/* ---- Werkbank: polish ---- */
 body.vscode-light{--accent:#2b5fc7;--on-accent:#fff}
 body.vscode-high-contrast{--accent:var(--vscode-button-background,#0e639c);--on-accent:var(--vscode-button-foreground,#fff)}
 :root{--r:8px;--ring:0 0 0 2px color-mix(in srgb,var(--accent) 55%,transparent)}
@@ -130,7 +130,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #wrap{background-color:var(--vscode-editorGroup-emptyBackground,var(--bg));background-image:linear-gradient(color-mix(in srgb,var(--text) 5%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--text) 5%,transparent) 1px,transparent 1px);background-size:24px 24px;background-position:-1px -1px}
 #viewer{gap:34px;padding:30px 24px 60px}
 .page{box-shadow:0 1px 2px rgba(0,0,0,.25),0 10px 28px rgba(0,0,0,.32)}
-.page::before{content:"Seite " attr(data-page);position:absolute;left:0;top:-21px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;pointer-events:none}
+.page::before{content:"Page " attr(data-page);position:absolute;left:0;top:-21px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;pointer-events:none}
 #menuPop{min-width:260px;padding:6px;border-radius:12px}
 .mi{border-radius:7px;padding:7px 12px}
 .mi:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 22%,transparent)}
@@ -151,5 +151,5 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .aiIcon{width:18px;height:18px;border-radius:4px;flex:none;object-fit:contain}
 .aiBadge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px;flex:none;font:700 11px/1 var(--vscode-font-family,system-ui);color:#fff}
 
-/* Menüs scrollen mit dem Mausrad, wenn das Fenster klein ist */
+/* Menus scroll with the mouse wheel when the window is small */
 #menuPop{max-height:calc(100vh - 16px);overflow-y:auto;overscroll-behavior:contain}

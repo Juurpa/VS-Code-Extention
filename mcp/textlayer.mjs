@@ -1,20 +1,20 @@
-// Unsichtbarer, exakt positionierter Textlayer für Seiten, die als Bild neu aufgebaut werden (Notlösung).
+// Invisible, exactly positioned text layer for pages that are rebuilt as an image (fallback).
 import { beginText, endText, setFontAndSize, setTextMatrix, setTextRenderingMode, PDFOperator, PDFNumber, PDFArray, TextRenderingMode } from '../media/lib/pdf-lib.esm.min.js';
 import { fileURLToPath } from 'node:url';
 
 export const FONT_FILE = fileURLToPath(new URL('../media/lib/standard_fonts/LiberationSans-Regular.ttf', import.meta.url));
 export const overlaps = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
 
-/** Legt unsichtbaren Text auf die Bildseite: der Originaltext, Zeile für Zeile, jedes Zeichen exakt an seiner Stelle
- *  (Positionen aus dem Original, keine Texterkennung). Zeichen, die einen schwarzen Balken berühren, fehlen.
- *  Läuft in Leserichtung (auch bei gedrehten Seiten). */
+/** Puts invisible text on the image page: the original text, line by line, every character exactly in place
+ *  (positions from the original, no text recognition). Characters touching a black bar are missing.
+ *  Runs in reading direction (also on rotated pages). */
 const FRAME = {
   0: { u: [1, 0], v: [0, 1] }, 90: { u: [0, -1], v: [1, 0] }, 180: { u: [-1, 0], v: [0, -1] }, 270: { u: [0, 1], v: [-1, 0] }
 };
 export function addTextLayer(out, page, font, pc, bars, scale, ptH) {
   const set = new Set(font.getCharacterSet());
   const key = page.node.newFontDictionary(font.name, font.ref);
-  // Zeichen in Seiten-Punkten (y nach oben)
+  // characters in page points (y up)
   const items = [];
   for (const c of pc.chars) {
     if (!c.ch || c.ch === '\r') continue;
@@ -61,7 +61,7 @@ export function addTextLayer(out, page, font, pc, bars, scale, ptH) {
     const fsz = Math.max(...real.map((c) => c.fs || 0));
     const size = Math.max(1, fsz || hMax / 1.15), t = baseO(R, real[0]);
     const s0 = alongO(R, real[0]);
-    // Breitenfaktor: Schrift (z. B. Liberation Sans) ist selten genau so breit wie das Original; sonst entstehen Lücken zwischen den Zeichen
+    // width factor: a font (e.g. Liberation Sans) is rarely exactly as wide as the original; otherwise gaps appear between characters
     const lastReal = real[real.length - 1];
     const natural = run.chars.reduce((a, c) => a + font.widthOfTextAtSize(c.ch, size), 0);
     const span = along(R, lastReal)[1] - along(R, real[0])[0];

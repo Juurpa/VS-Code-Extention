@@ -57,3 +57,5 @@ docs/**
 .gitignore
 .gitattributes
 media/brand/**
+ROADMAP.md
+media/screenshots/**

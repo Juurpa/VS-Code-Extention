@@ -16,8 +16,9 @@ const post = (m) => vscode.postMessage(m);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 fillIcons();
 document.title = cfg.name;
+S.name = cfg.name;
 
-// ------------------------------------------------------------ Laden
+// ------------------------------------------------------------ Loading
 let initResolve; const initP = new Promise((r) => (initResolve = r));
 let rid = 0; const pending = new Map();
 window.addEventListener('message', (e) => {
@@ -43,7 +44,7 @@ let textsReady = Promise.resolve();
 let workerP = null;
 async function loadDoc() {
   const worker = await (workerP ||= makeWorker());
-  try { S.pdf?.destroy(); } catch (e) { /* egal */ }
+  try { S.pdf?.destroy(); } catch (e) { /* ignore */ }
   io?.disconnect(); ioThumb?.disconnect(); viewerEl.replaceChildren(); S.pages = []; S.texts = [];
   S.pdf = await pdfjsLib.getDocument({
     data: S.bytes.slice(), worker,
@@ -53,7 +54,7 @@ async function loadDoc() {
   $('#pageCount').textContent = S.pdf.numPages;
   await buildPages();
 }
-// Nach Änderungen am Dokument (Seiten gedreht, gelöscht, …) neu aufbauen, Ansicht beibehalten
+// Rebuild after document changes (pages rotated, deleted, …) while keeping the view
 async function reload() {
   const z = S.zoom, top = wrapEl.scrollTop, cur = S.cur;
   S.red = {}; S.undo = S.undo; hideSel();
@@ -65,7 +66,7 @@ async function reload() {
 const markSelSafe = () => S.api.markSel && S.api.markSel();
 
 async function start() {
-  showMsg('PDF wird geladen …');
+  showMsg('Loading PDF …');
   try {
     const [buf, init] = await Promise.all([fetch(cfg.pdfUri).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }), initP]);
     S.bytes = new Uint8Array(buf).slice();
@@ -74,15 +75,15 @@ async function start() {
     showMsg('');
     fitWidth(true);
     S.pages.forEach((p) => renderAnn(p.n));
-    S.pdf.getPage(1).then((p) => p.getTextContent()).then((t) => { if (!t.items.some((i) => i.str && i.str.trim())) toast('Diese PDF sieht nach einem Scan aus (kein Text auf Seite 1). Unter Werkzeuge → „Texterkennung (OCR)“ wird sie durchsuchbar.', 9000); }).catch(() => {});
+    S.pdf.getPage(1).then((p) => p.getTextContent()).then((t) => { if (!t.items.some((i) => i.str && i.str.trim())) toast('This PDF looks like a scan (no text on page 1). Use Tools → "Text recognition (OCR)" to make it searchable.', 9000); }).catch(() => {});
     if (!init.hasText) textsReady = (async () => { const t = await getAllTexts(); post({ type: 'saveText', texts: t }); })();
   } catch (e) {
     console.error(e);
-    showMsg('PDF konnte nicht geöffnet werden: ' + (e.message || e));
+    showMsg('Could not open PDF: ' + (e.message || e));
   }
 }
 
-// ------------------------------------------------------------ Seiten & Rendern
+// ------------------------------------------------------------ Pages & rendering
 const svgNS = 'http://www.w3.org/2000/svg';
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS(svgNS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
 let io = null, ioThumb = null;
@@ -135,7 +136,7 @@ async function renderPage(rec) {
     await new pdfjsLib.TextLayer({ textContentSource: rec.page.streamTextContent(), container: rec.textDiv, viewport: vp }).render();
     if (token !== rec.token) { rec.textDiv.replaceChildren(); return; }
     rec.rendered = true;
-  } catch (e) { if (e?.name !== 'RenderingCancelledException') console.warn('Render-Fehler Seite', rec.n, e); }
+  } catch (e) { if (e?.name !== 'RenderingCancelledException') console.warn('Render error, page', rec.n, e); }
   finally { if (token === rec.token) rec.rendering = false; }
 }
 function buildThumbs() {
@@ -150,7 +151,7 @@ function buildThumbs() {
 async function drawThumb(rec, node) {
   const vp = rec.page.getViewport({ scale: 120 / rec.w }), c = document.createElement('canvas'), dpr = Math.min(window.devicePixelRatio || 1, 2);
   c.width = vp.width * dpr; c.height = vp.height * dpr; c.style.width = vp.width + 'px'; c.style.height = vp.height + 'px'; c.className = 'tc';
-  try { await rec.page.render({ canvasContext: c.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined }).promise; node.querySelector('.tc').replaceWith(c); } catch (e) { /* ignorieren */ }
+  try { await rec.page.render({ canvasContext: c.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined }).promise; node.querySelector('.tc').replaceWith(c); } catch (e) { /* ignore */ }
 }
 
 function setZoom(z) {
@@ -166,7 +167,7 @@ function fitWidth(initial) {
   S.zoom = Math.min(4, Math.max(0.25, z)); S.fit = 'width'; layoutPages();
 }
 function fitPage() { if (!S.pages.length) return; const p = S.pages[S.cur - 1]; setZoom(Math.min((wrapEl.clientWidth - 64) / (p.w * BASE), (wrapEl.clientHeight - 40) / (p.h * BASE))); }
-// Sprungverlauf: Seitensprünge (Seitenfeld, Vorschau, Suche …) merken die alte Stelle; Maustasten 4/5 gehen zurück/vor.
+// Jump history: page jumps (page field, preview, search …) remember the old position; mouse buttons 4/5 go back/forward.
 const navBack = [], navFwd = [];
 function jumpBack() { const t = navBack.pop(); if (t == null) return false; navFwd.push(wrapEl.scrollTop); wrapEl.scrollTop = t; return true; }
 function jumpFwd() { const t = navFwd.pop(); if (t == null) return false; navBack.push(wrapEl.scrollTop); wrapEl.scrollTop = t; return true; }
@@ -181,11 +182,11 @@ const mouseNav = (e) => {
   e.preventDefault(); e.stopPropagation();
   if (e.type !== 'mouseup') return;
   const ok = e.button === 3 ? jumpBack() : jumpFwd();
-  if (!ok) toast(e.button === 3 ? 'Nichts zum Zurückspringen.' : 'Nichts zum Vorspringen.');
+  if (!ok) toast(e.button === 3 ? 'Nothing to jump back to.' : 'Nothing to jump forward to.');
 };
 for (const ev of ['mousedown', 'mouseup', 'auxclick']) window.addEventListener(ev, mouseNav, true);
 function setCur(n) {
-  if (n === S.cur && $('#pageInput').value == n) return;
+  if (n === S.cur && $('#pageInput').value == n && document.querySelector('.thumb.cur')) return;
   S.cur = n; $('#pageInput').value = n;
   $$('.thumb.cur').forEach((t) => t.classList.remove('cur'));
   const t = S.pages[n - 1]?.thumb;
@@ -204,7 +205,7 @@ wrapEl.addEventListener('scroll', () => {
 $('#pageInput').addEventListener('change', (e) => goTo(parseInt(e.target.value, 10) || 1));
 $('#zoomIn').onclick = () => setZoom(S.zoom * 1.15);
 $('#zoomOut').onclick = () => setZoom(S.zoom / 1.15);
-$('#zoomLabel').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); showMenu(r.left, r.bottom + 4, [...[50, 75, 100, 125, 150, 200, 300].map((v) => ({ l: v + ' %', f: () => setZoom(v / 100) })), '-', { l: 'An Breite anpassen', f: () => fitWidth(false) }, { l: 'Ganze Seite', f: fitPage }]); };
+$('#zoomLabel').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); showMenu(r.left, r.bottom + 4, [...[50, 75, 100, 125, 150, 200, 300].map((v) => ({ l: v + ' %', f: () => setZoom(v / 100) })), '-', { l: 'Fit width', f: () => fitWidth(false) }, { l: 'Fit page', f: fitPage }]); };
 $('#btnSide').onclick = () => $('#sideCol').classList.toggle('hidden');
 wrapEl.addEventListener('wheel', (e) => { if (e.ctrlKey) { e.preventDefault(); setZoom(S.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.pdf && S.fit === 'width') fitWidth(false); }, 200); });
@@ -218,7 +219,7 @@ async function getPageText(n) {
 }
 async function getAllTexts() { for (let n = 1; n <= S.pages.length; n++) await getPageText(n); return S.texts.slice(); }
 
-// ------------------------------------------------------------ Annotationen
+// ------------------------------------------------------------ Annotations
 const annOf = (n) => { const a = (S.ann[n] ||= { hl: [], ink: [], notes: [], sigs: [] }); a.sigs ||= []; return a; };
 function renderAnn(n) {
   const rec = S.pages[n - 1]; if (!rec) return;
@@ -282,9 +283,9 @@ function hideSel() { $('#selPop').hidden = true; }
 function showSelPop(sel) {
   const r = sel.getRangeAt(0).getBoundingClientRect(), pop = $('#selPop'), text = sel.toString(), page = pageOfNode(sel.anchorNode);
   pop.replaceChildren(
-    ...HL_COLORS.map((c) => el('button', { class: 'swatch', style: `background:${c}`, title: 'Markieren', onmousedown: (e) => e.preventDefault(), onclick: () => { selectionToHighlight(c); hideSel(); } })),
-    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: () => { hideSel(); askClaude('explain', { selection: text, page }); } }, S.ai.name + ': Erklären'),
-    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: async () => { try { await navigator.clipboard.writeText(text); toast('Kopiert', 1200); } catch (e) {} hideSel(); } }, 'Kopieren'));
+    ...HL_COLORS.map((c) => el('button', { class: 'swatch', style: `background:${c}`, title: 'Highlight', onmousedown: (e) => e.preventDefault(), onclick: () => { selectionToHighlight(c); hideSel(); } })),
+    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: () => { hideSel(); askClaude('explain', { selection: text, page }); } }, S.ai.name + ': Explain'),
+    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: async () => { try { await navigator.clipboard.writeText(text); toast('Copied', 1200); } catch (e) {} hideSel(); } }, 'Copy'));
   pop.hidden = false;
   const pw = pop.offsetWidth;
   pop.style.left = Math.max(8, Math.min(innerWidth - pw - 8, r.left + r.width / 2 - pw / 2)) + 'px';
@@ -298,7 +299,7 @@ wrapEl.addEventListener('mouseup', () => setTimeout(() => {
 }, 10));
 document.addEventListener('mousedown', (e) => { if (!e.target.closest('#selPop')) hideSel(); if (!e.target.closest('#notePop') && !e.target.closest('.noteMark')) closeNote(); if (!e.target.closest('#menuPop') && !e.target.closest('#zoomLabel') && !e.target.closest('#tClaude')) hideMenu(); });
 
-// Zeichnen / Radieren / Kommentar
+// Draw / erase / comment
 let drawing = null;
 viewerEl.addEventListener('pointerdown', (e) => {
   if (S.tool === 'erase' && e.button === 0) { eraseAt(e); return; }
@@ -330,25 +331,25 @@ viewerEl.addEventListener('click', (e) => {
 });
 function closeNote() { $('#notePop').hidden = true; }
 function openNoteEditor(n, x, y, item, anchor, cx, cy) {
-  const pop = $('#notePop'), ta = el('textarea', { placeholder: 'Kommentar …' }); ta.value = item?.text || '';
+  const pop = $('#notePop'), ta = el('textarea', { placeholder: 'Comment …' }); ta.value = item?.text || '';
   const save = () => { const t = ta.value.trim(); if (item) { if (t) { item.text = t; renderAnn(n); saveAnn(); } else removeItem('notes', n, item.id); } else if (t) addItem('notes', n, { id: uid(), x, y, text: t }); closeNote(); };
   ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) save(); if (e.key === 'Escape') closeNote(); });
-  pop.replaceChildren(ta, el('div', { class: 'row' }, item ? el('button', { class: 'pillBtn', onclick: () => { removeItem('notes', n, item.id); closeNote(); } }, 'Löschen') : null, el('button', { class: 'pillBtn primary', onclick: save }, 'Speichern')));
+  pop.replaceChildren(ta, el('div', { class: 'row' }, item ? el('button', { class: 'pillBtn', onclick: () => { removeItem('notes', n, item.id); closeNote(); } }, 'Delete') : null, el('button', { class: 'pillBtn primary', onclick: save }, 'Save')));
   pop.hidden = false;
   const r = anchor ? anchor.getBoundingClientRect() : { left: cx, bottom: cy };
   pop.style.left = Math.min(innerWidth - 270, Math.max(8, r.left)) + 'px'; pop.style.top = Math.min(innerHeight - pop.offsetHeight - 8, (r.bottom || cy) + 8) + 'px'; ta.focus();
 }
 
-// Werkzeuge
+// Tools
 function renderToolOpts() {
   const t = S.tool, o = $('#toolOpts'); o.replaceChildren();
   if (t === 'hl' || t === 'draw') {
     const cols = t === 'hl' ? HL_COLORS : PEN_COLORS, cur = t === 'hl' ? S.hlColor : S.penColor;
-    o.append(el('span', {}, t === 'hl' ? 'Text auswählen zum Markieren:' : 'Farbe:'));
+    o.append(el('span', {}, t === 'hl' ? 'Select text to highlight:' : 'Color:'));
     cols.forEach((c) => o.append(el('button', { class: 'swatch' + (c === cur ? ' on' : ''), style: `background:${c}`, onclick: () => { if (t === 'hl') S.hlColor = c; else S.penColor = c; renderToolOpts(); } })));
-    if (t === 'draw') { o.append(el('span', {}, 'Stärke')); const r = el('input', { type: 'range', min: 1, max: 12, value: S.penW }); r.oninput = () => { S.penW = +r.value; }; o.append(r); }
-  } else if (t === 'erase') o.append(el('span', {}, 'Auf Markierung, Zeichnung oder Kommentar klicken oder darüberziehen.'));
-  else if (t === 'note') o.append(el('span', {}, 'Auf die Seite klicken, um einen Kommentar zu setzen.'));
+    if (t === 'draw') { o.append(el('span', {}, 'Width')); const r = el('input', { type: 'range', min: 1, max: 12, value: S.penW }); r.oninput = () => { S.penW = +r.value; }; o.append(r); }
+  } else if (t === 'erase') o.append(el('span', {}, 'Click or drag over a highlight, drawing or comment.'));
+  else if (t === 'note') o.append(el('span', {}, 'Click on the page to add a comment.'));
   else S.api.toolOptsExt?.(t, o);
   o.hidden = !o.childElementCount;
 }
@@ -359,7 +360,7 @@ function setTool(t) {
 }
 $$('[data-tool]').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
 
-// Menü
+// Menu
 function hideMenu() { $('#menuPop').hidden = true; }
 function showMenu(x, y, items) {
   const m = $('#menuPop');
@@ -367,18 +368,18 @@ function showMenu(x, y, items) {
   m.hidden = false; m.scrollTop = 0; m.style.left = Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8)) + 'px'; m.style.top = Math.max(8, Math.min(y, innerHeight - m.offsetHeight - 8)) + 'px';
 }
 
-// ------------------------------------------------------------ KI-Anzeige (Name und Symbol der gewählten KI)
-S.ai = { id: 'claude-code', name: 'KI', icon: null };
+// ------------------------------------------------------------ AI display (name and icon of the chosen AI)
+S.ai = { id: 'claude-code', name: 'AI', icon: null };
 function applyAi(ai) {
   if (!ai) return;
   S.ai = ai;
   const b = $('#tClaude'); if (!b) return;
-  b.title = 'Aufgabe an ' + ai.name + ' geben';
+  b.title = 'Give ' + ai.name + ' a task';
   b.querySelector('.lbl').textContent = ai.name;
   const old = b.querySelector('.ic, .aiIcon, .aiBadge');
   let n;
   if (ai.icon) n = el('img', { class: 'aiIcon', src: ai.icon, alt: '' });
-  else if (ai.name && ai.name !== 'KI') { n = el('span', { class: 'aiBadge' }, ai.name[0].toUpperCase()); let h = 0; for (const c of ai.name) h = (h * 31 + c.charCodeAt(0)) % 360; n.style.background = `hsl(${h} 55% 42%)`; }
+  else if (ai.name && ai.name !== 'AI' && ai.name !== 'KI') { n = el('span', { class: 'aiBadge' }, ai.name[0].toUpperCase()); let h = 0; for (const c of ai.name) h = (h * 31 + c.charCodeAt(0)) % 360; n.style.background = `hsl(${h} 55% 42%)`; }
   else { n = el('span', { class: 'ic' }); n.innerHTML = icon('spark'); }
   old.replaceWith(n);
 }
@@ -389,39 +390,39 @@ window.addEventListener('message', (e) => { if (e.data?.type === 'ai') applyAi(e
 async function askClaude(kind, extra = {}) {
   if (!S.pdf) return;
   flushAnn();
-  if (kind !== 'explain') { toast('Text wird für ' + S.ai.name + ' vorbereitet …', 4000); }
+  if (kind !== 'explain') { toast('Preparing text for ' + S.ai.name + ' …', 4000); }
   await textsReady; await sleep(350);
   post({ type: 'claude', kind, page: extra.page ?? S.cur, selection: extra.selection, count: extra.count });
 }
 function countDialog(kind, label) {
   const sel = el('select', {}, ...[5, 8, 12, 20].map((v) => el('option', { value: v, selected: v === 8 }, v)));
-  modal({ title: label, body: el('label', { class: 'muted' }, 'Anzahl ', sel), actions: [{ label: 'Abbrechen' }, { label: 'An ' + S.ai.name + ' senden', primary: true, onClick: () => askClaude(kind, { count: +sel.value }) }] });
+  modal({ title: label, body: el('label', { class: 'muted' }, 'Count ', sel), actions: [{ label: 'Cancel' }, { label: 'Send to ' + S.ai.name, primary: true, onClick: () => askClaude(kind, { count: +sel.value }) }] });
 }
 $('#tClaude').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, [
-    { l: 'Diese Seite zusammenfassen', f: () => askClaude('summary-page') },
-    { l: 'Ganze PDF zusammenfassen', f: () => askClaude('summary-doc') },
-    { l: 'Lernzettel erstellen', f: () => askClaude('learn') },
-    { l: 'Quiz erstellen …', f: () => countDialog('quiz', 'Quiz erstellen') },
-    { l: 'Karteikarten mit ' + S.ai.name + ' …', f: () => countDialog('cards', 'Karteikarten erstellen') },
+    { l: 'Summarize this page', f: () => askClaude('summary-page') },
+    { l: 'Summarize whole PDF', f: () => askClaude('summary-doc') },
+    { l: 'Create study sheet', f: () => askClaude('learn') },
+    { l: 'Create quiz …', f: () => countDialog('quiz', 'Create quiz') },
+    { l: 'Flashcards with ' + S.ai.name + ' …', f: () => countDialog('cards', 'Create flashcards') },
     '-',
-    { l: 'Frage zur PDF stellen', f: () => askClaude('ask') },
+    { l: 'Ask a question about the PDF', f: () => askClaude('ask') },
     '-',
-    { l: 'KI wechseln … (jetzt: ' + S.ai.name + ')', f: () => post({ type: 'chooseAi' }) },
-    { l: 'PDF-Werkzeuge für die KI einrichten …', f: () => post({ type: 'setupMcp' }) }
+    { l: 'Switch AI … (now: ' + S.ai.name + ')', f: () => post({ type: 'chooseAi' }) },
+    { l: 'Set up PDF tools for the AI …', f: () => post({ type: 'setupMcp' }) }
   ]);
 };
 
-// ------------------------------------------------------------ Karteikarten aus Markierungen
+// ------------------------------------------------------------ Flashcards from highlights
 const esre = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function highlights() { const out = []; Object.keys(S.ann).map(Number).sort((a, b) => a - b).forEach((n) => S.ann[n].hl.filter((h) => h.text && h.text !== '…').forEach((h) => out.push({ page: n, text: h.text }))); return out; }
 function clozeCards(hl, texts) {
   return hl.map((h) => {
     const t = h.text.replace(/\s+/g, ' ').trim(), pt = (texts[h.page - 1] || '').replace(/\s+/g, ' ');
-    if (t.length > 140) return { front: `Seite ${h.page}: Wie geht die markierte Stelle weiter, die beginnt mit „${t.split(' ').slice(0, 6).join(' ')} …“?`, back: t, page: h.page };
+    if (t.length > 140) return { front: `Page ${h.page}: How does the highlighted passage continue that begins with "${t.split(' ').slice(0, 6).join(' ')} …"?`, back: t, page: h.page };
     const idx = pt.toLowerCase().indexOf(t.toLowerCase());
-    if (idx < 0) return { front: `Seite ${h.page}: Ergänze die markierte Stelle.`, back: t, page: h.page };
+    if (idx < 0) return { front: `Page ${h.page}: Complete the highlighted passage.`, back: t, page: h.page };
     let s = pt.lastIndexOf('. ', idx); s = s < 0 ? 0 : s + 2; let e = pt.indexOf('. ', idx + t.length); e = e < 0 ? pt.length : e + 1;
     let sentence = pt.slice(s, e); if (sentence.length > 380) sentence = pt.slice(Math.max(0, idx - 130), idx + t.length + 130);
     return { front: sentence.replace(new RegExp(esre(t), 'i'), '[ … ]'), back: t, page: h.page };
@@ -429,26 +430,26 @@ function clozeCards(hl, texts) {
 }
 async function cards() {
   const hl = highlights();
-  if (!hl.length) { toast('Markiere zuerst Stellen im Text. Daraus werden die Karteikarten.', 4500); return; }
+  if (!hl.length) { toast('Highlight passages in the text first. They become the flashcards.', 4500); return; }
   runCards(clozeCards(hl, await getAllTexts()));
 }
 function runCards(deck) {
   deck = deck.slice(); let i = 0, known = 0; const total = deck.length, body = el('div', { style: 'display:flex;flex-direction:column;gap:12px' });
-  const m = modal({ title: 'Karteikarten', body, wide: true, actions: [] });
+  const m = modal({ title: 'Flashcards', body, wide: true, actions: [] });
   function show() {
     body.replaceChildren();
-    if (i >= deck.length) { body.append(el('p', { class: 'qq' }, `Fertig – ${known} von ${total} Karten gewusst.`), el('div', { class: 'row' }, el('button', { class: 'pillBtn primary', onclick: () => m.close() }, 'Schließen'))); return; }
+    if (i >= deck.length) { body.append(el('p', { class: 'qq' }, `Done – ${known} of ${total} cards known.`), el('div', { class: 'row' }, el('button', { class: 'pillBtn primary', onclick: () => m.close() }, 'Close'))); return; }
     const c = deck[i]; let flipped = false;
-    const card = el('div', { class: 'card', onclick: flip }, el('div', {}, el('small', {}, 'Vorderseite' + (c.page ? ` · S. ${c.page}` : '')), c.front));
-    function flip() { flipped = !flipped; card.replaceChildren(el('div', {}, el('small', {}, flipped ? 'Rückseite' : 'Vorderseite'), flipped ? c.back : c.front)); btns.hidden = !flipped; }
-    const btns = el('div', { class: 'row', hidden: true }, el('button', { class: 'pillBtn', onclick: () => { deck.push(c); i++; show(); } }, 'Nochmal'), el('button', { class: 'pillBtn primary', onclick: () => { known++; i++; show(); } }, 'Gewusst'));
-    body.append(el('div', { class: 'progress' }, el('i', { style: `width:${(Math.min(i, total) / Math.max(total, deck.length)) * 100}%` })), el('p', { class: 'muted' }, `Karte ${i + 1} von ${deck.length} – zum Umdrehen klicken`), card, btns);
+    const card = el('div', { class: 'card', onclick: flip }, el('div', {}, el('small', {}, 'Front' + (c.page ? ` · p. ${c.page}` : '')), c.front));
+    function flip() { flipped = !flipped; card.replaceChildren(el('div', {}, el('small', {}, flipped ? 'Back' : 'Front'), flipped ? c.back : c.front)); btns.hidden = !flipped; }
+    const btns = el('div', { class: 'row', hidden: true }, el('button', { class: 'pillBtn', onclick: () => { deck.push(c); i++; show(); } }, 'Again'), el('button', { class: 'pillBtn primary', onclick: () => { known++; i++; show(); } }, 'Known'));
+    body.append(el('div', { class: 'progress' }, el('i', { style: `width:${(Math.min(i, total) / Math.max(total, deck.length)) * 100}%` })), el('p', { class: 'muted' }, `Card ${i + 1} of ${deck.length} – click to flip`), card, btns);
   }
   show();
 }
 $('#tCards').onclick = cards;
 
-// ------------------------------------------------------------ Speichern / Markierungen
+// ------------------------------------------------------------ Saving / annotations
 $('#tMarks').onclick = async () => { flushAnn(); await sleep(250); post({ type: 'openMarks' }); };
 const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return rgb((n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255); };
 const winAnsi = (s) => s.replace(/[^\n\x20-\x7E\xA0-\xFF]/g, '?');
@@ -457,8 +458,8 @@ async function buildAnnotatedPdf() {
   for (const [key, a] of Object.entries(S.ann)) {
     const pg = pages[+key - 1]; if (!pg) continue;
     const { width: W, height: H } = pg.getSize(), r = ((pg.getRotation().angle % 360) + 360) % 360, dw = r % 180 ? H : W, dh = r % 180 ? W : H;
-    const P = (u, v) => toPdf(u, v, W, H, r);                       // normalisiert (Anzeige) -> PDF
-    const D = (x, y) => P(x / dw, y / dh);                          // Punkt der Anzeige (pt, von oben links) -> PDF
+    const P = (u, v) => toPdf(u, v, W, H, r);                       // normalized (display) -> PDF
+    const D = (x, y) => P(x / dw, y / dh);                          // display point (pt, from top left) -> PDF
     (a.hl || []).forEach((h) => h.rects.forEach(([x, y, w, hh]) => {
       const p1 = P(x, y), p2 = P(x + w, y + hh), x0 = Math.min(p1[0], p2[0]), y0 = Math.min(p1[1], p2[1]);
       pg.drawRectangle({ x: x0, y: y0, width: Math.abs(p1[0] - p2[0]), height: Math.abs(p1[1] - p2[1]), color: hexRgb(h.color), blendMode: BlendMode.Multiply });
@@ -467,7 +468,7 @@ async function buildAnnotatedPdf() {
     (a.notes || []).forEach((nt) => {
       const x = nt.x * dw, y = nt.y * dh, size = 8, maxW = 150, words = winAnsi(nt.text).split(/\s+/), lines = []; let line = '';
       words.forEach((w) => { const t = line ? line + ' ' + w : w; if (font.widthOfTextAtSize(t, size) > maxW && line) { lines.push(line); line = w; } else line = t; }); if (line) lines.push(line);
-      const bh = lines.length * (size + 2) + 6, bx = Math.min(x + 6, dw - maxW - 10), by = Math.min(dh - 4, y + bh); // by = Unterkante in Anzeige-Koordinaten (von oben)
+      const bh = lines.length * (size + 2) + 6, bx = Math.min(x + 6, dw - maxW - 10), by = Math.min(dh - 4, y + bh); // by = bottom edge in display coordinates (from top)
       const o = D(bx, by); pg.drawRectangle({ x: o[0], y: o[1], width: maxW + 8, height: bh, rotate: degrees(r), color: rgb(1, 0.95, 0.55), borderColor: rgb(0.8, 0.65, 0), borderWidth: 0.6 });
       lines.forEach((l, i) => { const q = D(bx + 4, by - bh + 9 + i * (size + 2)); pg.drawText(l, { x: q[0], y: q[1], size, font, rotate: degrees(r), color: rgb(0.1, 0.1, 0.1) }); });
       const c = D(x, y); pg.drawCircle({ x: c[0], y: c[1], size: 3.5, color: rgb(0.99, 0.84, 0.2), borderColor: rgb(0.6, 0.45, 0), borderWidth: 0.6 });
@@ -481,11 +482,11 @@ async function buildAnnotatedPdf() {
 }
 function toB64(bytes) { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
 $('#tSave').onclick = async () => {
-  try { toast('Kopie wird erstellt …', 3000); post({ type: 'saveCopy', b64: toB64(await buildAnnotatedPdf()) }); }
-  catch (e) { toast('Fehler: ' + (e.message || e), 5000); }
+  try { toast('Creating copy …', 3000); post({ type: 'saveCopy', b64: toB64(await buildAnnotatedPdf()) }); }
+  catch (e) { toast('Error: ' + (e.message || e), 5000); }
 };
 
-// Tastatur
+// Keyboard
 document.addEventListener('keydown', (e) => {
   const tag = e.target.tagName, typing = tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable, mod = e.ctrlKey || e.metaKey;
   if (!typing && mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
@@ -498,41 +499,41 @@ document.addEventListener('keydown', (e) => {
 });
 
 
-// ------------------------------------------------------------ Fehler melden
+// ------------------------------------------------------------ Report a problem
 async function reportDialog(kind) {
   let pdf = null;
   if (S.pdf) {
-    pdf = { Seiten: S.pdf.numPages, 'Größe (KB)': Math.round((S.bytes?.length || 0) / 1024) };
-    try { const i = (await S.pdf.getMetadata()).info || {}; if (i.Producer) pdf['Ersteller-Programm'] = String(i.Producer).slice(0, 80); if (i.PDFFormatVersion) pdf['PDF-Version'] = i.PDFFormatVersion; } catch (e) { /* ohne */ }
+    pdf = { Pages: S.pdf.numPages, 'Size (KB)': Math.round((S.bytes?.length || 0) / 1024) };
+    try { const i = (await S.pdf.getMetadata()).info || {}; if (i.Producer) pdf['Producer'] = String(i.Producer).slice(0, 80); if (i.PDFFormatVersion) pdf['PDF version'] = i.PDFFormatVersion; } catch (e) { /* none */ }
   }
   post({ type: 'report', kind, pdf });
 }
 window.addEventListener('error', (e) => post({ type: 'jsError', message: String(e.message || '').slice(0, 300) }));
 window.addEventListener('unhandledrejection', (e) => post({ type: 'jsError', message: String(e.reason?.message || e.reason || '').slice(0, 300) }));
 
-// ------------------------------------------------------------ Werkzeuge-Menü, Speichern
+// ------------------------------------------------------------ Tools menu, saving
 $('#tTools').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, [
-    { l: 'PDFs zusammenfügen …', f: mergeDialog },
-    { l: 'PDF aufteilen …', f: splitDialog },
-    { l: 'Seiten aus PDF einfügen …', f: () => insertFrom(S.cur) },
-    { l: 'Seiten zuschneiden …', f: cropDialog },
-    { l: 'Seitenzahlen einfügen …', f: numberDialog },
-    { l: 'Texterkennung (OCR) …', f: () => ocrDialog().catch((e) => toast('Fehler: ' + (e.message || e), 6000)) },
-    { l: 'Komprimieren …', f: compressDialog },
+    { l: 'Merge PDFs …', f: mergeDialog },
+    { l: 'Split PDF …', f: splitDialog },
+    { l: 'Insert pages from PDF …', f: () => insertFrom(S.cur) },
+    { l: 'Crop pages …', f: cropDialog },
+    { l: 'Insert page numbers …', f: numberDialog },
+    { l: 'Text recognition (OCR) …', f: () => ocrDialog().catch((e) => toast('Error: ' + (e.message || e), 6000)) },
+    { l: 'Compress …', f: compressDialog },
     '-',
-    { l: 'Schwärzen', f: () => setTool('redact') },
-    { l: 'Unterschrift setzen', f: () => setTool('sign') },
+    { l: 'Redact', f: () => setTool('redact') },
+    { l: 'Place signature', f: () => setTool('sign') },
     '-',
-    { l: 'Fehler melden …', f: () => reportDialog('bug') },
-    { l: 'Feedback geben …', f: () => reportDialog('praise') },
-    { l: 'Lizenzen …', f: () => post({ type: 'licenses' }) }
+    { l: 'Report a problem …', f: () => reportDialog('bug') },
+    { l: 'Send feedback …', f: () => reportDialog('praise') },
+    { l: 'Licenses …', f: () => post({ type: 'licenses' }) }
   ]);
 };
 $('#tFile').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
-  showMenu(r.left, r.bottom + 4, [{ l: 'Speichern (Datei überschreiben)', f: saveFile }, { l: 'Speichern unter …', f: saveAs }]);
+  showMenu(r.left, r.bottom + 4, [{ l: 'Save (overwrite file)', f: saveFile }, { l: 'Save as …', f: saveAs }]);
 };
 Object.assign(S.api, { reload, request, post, showMenu, goTo, flushAnn, saveAnn, getAllTexts, updateUndo, renderToolOpts, addItem, setTool });
 initPages(); initTools();
@@ -540,7 +541,7 @@ S.tool = 'none'; setTool('select');
 window.__werkbank = { S, getAllTexts };
 start();
 
-// Werkzeugleiste: Mausrad scrollt seitwärts, wenn das Fenster zu schmal ist
+// Toolbar: mouse wheel scrolls sideways when the window is too narrow
 {
   const bar = $('#bar');
   if (bar) bar.addEventListener('wheel', (e) => { if (bar.scrollWidth > bar.clientWidth && Math.abs(e.deltaY) >= Math.abs(e.deltaX)) { bar.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// Werkbank-MCP-Server: gibt einer KI (z. B. Claude Code) die PDF-Werkzeuge der Werkbank.
-// Läuft lokal über stdin/stdout. Dateien nur innerhalb des Arbeitsordners (WERKBANK_ROOT, sonst aktuelles Verzeichnis).
-// Originale werden nie überschrieben: Ergebnisse landen in neuen Dateien neben dem Original.
+// Werkbank MCP server: gives an AI (e.g. Claude Code) the PDF tools of the Werkbank.
+// Runs locally over stdin/stdout. Files only inside the working folder (WERKBANK_ROOT, otherwise the current directory).
+// Originals are never overwritten: results go to new files next to the original.
 import './quiet.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ops, info, readText, find, redact, redactVerified, KINDS, parsePages } from './ops.mjs';
 import { ocrPdf, detectScanned } from './ocr.mjs';
+import { formFields, fillForm, flattenForm, watermark, readMetadata, writeMetadata } from './formtools.mjs';
 
 const ROOT = path.resolve(process.env.WERKBANK_ROOT || process.cwd());
 const DATA = process.env.WERKBANK_DATA || '_werkbank';
@@ -14,13 +15,13 @@ const DATA = process.env.WERKBANK_DATA || '_werkbank';
 function safe(p) {
   const abs = path.resolve(ROOT, String(p));
   const rel = path.relative(ROOT, abs);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`„${p}“ liegt außerhalb des Arbeitsordners (${ROOT}).`);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`"${p}" is outside the working folder (${ROOT}).`);
   return abs;
 }
-const readPdf = (p) => { const a = safe(p); if (!fs.existsSync(a)) throw new Error(`Datei nicht gefunden: ${p}`); return new Uint8Array(fs.readFileSync(a)); };
+const readPdf = (p) => { const a = safe(p); if (!fs.existsSync(a)) throw new Error(`File not found: ${p}`); return new Uint8Array(fs.readFileSync(a)); };
 const rel = (a) => path.relative(ROOT, a).split(path.sep).join('/');
 function freeName(file, suffix, out) {
-  if (out) { const a = safe(out); if (fs.existsSync(a)) throw new Error(`„${out}“ gibt es schon. Anderen Namen wählen – vorhandene Dateien werden nicht überschrieben.`); return a; }
+  if (out) { const a = safe(out); if (fs.existsSync(a)) throw new Error(`"${out}" already exists. Choose another name – existing files are never overwritten.`); return a; }
   const base = safe(file).replace(/\.pdf$/i, '');
   let n = 0, cand;
   do { cand = `${base}_${suffix}${n ? '_' + (n + 1) : ''}.pdf`; n++; } while (fs.existsSync(cand));
@@ -28,94 +29,110 @@ function freeName(file, suffix, out) {
 }
 function write(a, bytes) { fs.mkdirSync(path.dirname(a), { recursive: true }); fs.writeFileSync(a, bytes); return rel(a); }
 
-const FILE = { type: 'string', description: 'Pfad der PDF (relativ zum Arbeitsordner)' };
-const OUT = { type: 'string', description: 'Optional: Name der neuen Datei. Standard: neben dem Original mit Endung. Bestehende Dateien werden nie überschrieben.' };
-const PAGES = { description: 'Seiten, z. B. "1-3,5" oder [1,2]. Zählung ab 1. Weglassen = alle.' };
+const FILE = { type: 'string', description: 'Path of the PDF (relative to the working folder)' };
+const OUT = { type: 'string', description: 'Optional: name of the new file. Default: next to the original with a suffix. Existing files are never overwritten.' };
+const PAGES = { description: 'Pages, e.g. "1-3,5" or [1,2]. Counting starts at 1. Omit = all pages.' };
 const kindsList = Object.entries(KINDS).map(([k, v]) => `${k} (${v.label})`).join('; ');
 
 const TOOLS = [
-  { name: 'pdf_info', description: 'Seitenzahl, Titel/Autor, Seitengrößen, ob die PDF verschlüsselt ist und welche Seiten keinen Text haben (Scans, dafür pdf_ocr).', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
-    run: async (a) => { const b = readPdf(a.file), r = await info(b); try { r.seiten_ohne_text = (await detectScanned(b)).filter((s) => s.scanned).map((s) => s.page); } catch { /* optional */ } return r; } },
-  { name: 'pdf_read_text', description: 'Liest den Text der PDF seitenweise. Seiten ohne Text (eingescannte Bilder) sind leer und tragen dann einen Hinweis auf pdf_ocr.', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES }, required: ['file'] },
-    run: async (a) => (await readText(readPdf(a.file), a.pages)).map((p) => (p.text ? p : { ...p, hinweis: 'Kein Text auf dieser Seite. Vermutlich ein Scan: mit pdf_ocr Text erkennen lassen.' })) },
-  { name: 'pdf_ocr', description: 'Texterkennung (OCR) für eingescannte Seiten, vollständig lokal und ohne Internet. Legt eine neue PDF an: Das Bild bleibt unverändert, der erkannte Text liegt unsichtbar und exakt platziert dahinter (durchsuchbar, markierbar, schwärzbar). Erkennt gedrehte Seiten selbst. Standard: alle Seiten ohne Text. Dauert je Seite etwa 10–25 Sekunden (quality "fast" etwa die Hälfte). Handschrift und Formeln werden nicht zuverlässig erkannt: Seiten mit niedriger Sicherheit (low_confidence) dem Nutzer nennen.', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, languages: { type: 'array', items: { type: 'string', enum: ['deu', 'eng'] }, description: 'Sprachen, Standard ["deu","eng"]' }, quality: { type: 'string', enum: ['good', 'fast'], description: 'good = 300 dpi mit Zusatzdurchgang für Tabellen/Formulare (Standard), fast = 250 dpi, ohne Zusatzdurchgang' }, force: { type: 'boolean', description: 'Auch Seiten behandeln, die schon Text haben (dort wird Text ergänzt, nichts ersetzt). Meist nicht nötig.' }, out: OUT }, required: ['file'] },
+  { name: 'pdf_info', description: 'Page count, title/author, page sizes, whether the PDF is encrypted and which pages have no text (scans; use pdf_ocr for those).', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
+    run: async (a) => { const b = readPdf(a.file), r = await info(b); try { r.pages_without_text = (await detectScanned(b)).filter((s) => s.scanned).map((s) => s.page); } catch { /* optional */ } return r; } },
+  { name: 'pdf_read_text', description: 'Reads the text of the PDF page by page. Pages without text (scanned images) are empty and carry a hint pointing to pdf_ocr.', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES }, required: ['file'] },
+    run: async (a) => (await readText(readPdf(a.file), a.pages)).map((p) => (p.text ? p : { ...p, note: 'No text on this page. Probably a scan: run pdf_ocr to recognize the text.' })) },
+  { name: 'pdf_ocr', description: 'Text recognition (OCR) for scanned pages, fully local and offline. Creates a new PDF: the image stays unchanged, the recognized text sits invisibly and exactly placed behind it (searchable, selectable, redactable). Detects rotated pages by itself. Default: all pages without text. Takes about 10–25 seconds per page (quality "fast" about half). Handwriting and formulas are not recognized reliably: tell the user about pages with low confidence (low_confidence).', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, languages: { type: 'array', items: { type: 'string', enum: ['deu', 'eng'] }, description: 'Languages, default ["deu","eng"]' }, quality: { type: 'string', enum: ['good', 'fast'], description: 'good = 300 dpi with an extra pass for tables/forms (default), fast = 250 dpi, no extra pass' }, force: { type: 'boolean', description: 'Also process pages that already have text (text is added, nothing is replaced). Usually not needed.' }, out: OUT }, required: ['file'] },
     run: async (a) => {
       const b = readPdf(a.file);
       const pages = a.pages ? parsePages(a.pages, (await info(b)).pages).map((i) => i + 1) : null;
       const r = await ocrPdf(b, { pages, langs: a.languages, force: !!a.force, fast: a.quality === 'fast' });
-      if (!r.bytes) return { changed: false, hinweis: r.message, uebersprungen: r.skipped };
+      if (!r.bytes) return { changed: false, note: r.message, skipped: r.skipped };
       return { file: write(freeName(a.file, 'ocr', a.out), r.bytes), pages: r.pages.map((p) => ({ page: p.page, words: p.words, confidence: p.conf, turned_by: p.turned, low_confidence: p.lowConf })), skipped_pages_with_text: r.skipped };
     } },
-  { name: 'pdf_read_marks', description: 'Liest die Markierungen und Kommentare des Nutzers aus dem Werkbank-Betrachter (markierungen.md). Damit weißt du, welche Stellen der Nutzer gemeint hat.', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
+  { name: 'pdf_read_marks', description: 'Reads the highlights and comments of the user from the Werkbank viewer (marks.md). This tells you which passages the user means.', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
     run: async (a) => {
-      const p = path.join(safe(a.file).replace(/\.pdf$/i, '').replace(ROOT, path.join(ROOT, DATA)), 'markierungen.md');
-      return fs.existsSync(p) ? { marks: fs.readFileSync(p, 'utf8') } : { marks: null, hinweis: 'Noch keine Markierungen vorhanden.' };
+      const p = path.join(safe(a.file).replace(/\.pdf$/i, '').replace(ROOT, path.join(ROOT, DATA)), 'marks.md');
+      return fs.existsSync(p) ? { marks: fs.readFileSync(p, 'utf8') } : { marks: null, note: 'No markings yet.' };
     } },
-  { name: 'pdf_find', description: 'Sucht in der PDF, ohne etwas zu verändern. Mit "kinds" werden typische persönliche Angaben erkannt. Nutze das, bevor du schwärzt, und prüfe die Treffer. Namen und Adressen erkennt nur du selbst: lies den Text und gib sie dann bei pdf_redact als "terms" an. Erkennbare Arten: ' + kindsList,
-    inputSchema: { type: 'object', properties: { file: FILE, terms: { type: 'array', items: { type: 'string' }, description: 'Feste Begriffe (Groß/Kleinschreibung und Leerzeichen egal)' }, regex: { type: 'array', items: { type: 'string' } }, kinds: { type: 'array', items: { type: 'string', enum: Object.keys(KINDS) } }, pages: PAGES }, required: ['file'] },
+  { name: 'pdf_find', description: 'Searches the PDF without changing anything. "kinds" detects typical personal data. Use this before redacting and check the matches. Only you can recognize names and addresses: read the text and pass them to pdf_redact as "terms". Detectable kinds: ' + kindsList,
+    inputSchema: { type: 'object', properties: { file: FILE, terms: { type: 'array', items: { type: 'string' }, description: 'Fixed terms (case and whitespace are ignored)' }, regex: { type: 'array', items: { type: 'string' } }, kinds: { type: 'array', items: { type: 'string', enum: Object.keys(KINDS) } }, pages: PAGES }, required: ['file'] },
     run: async (a) => { const h = await find(readPdf(a.file), a); return { count: h.length, hits: h }; } },
-  { name: 'pdf_redact', description: 'ECHTES Schwärzen bei erhaltener Struktur. Die Buchstaben unter dem Balken werden direkt aus dem Seitencode gelöscht (nicht nur überdeckt); Schrift, Layout, Links, Lesezeichen und Formulare bleiben wie im Original. Nur wenn das nicht sicher geht (z. B. ein Foto oder eine Grafik unter dem Balken), wird diese Seite als Bild mit exaktem Textlayer neu aufgebaut; das steht dann im Ergebnis unter "seiten". Danach prüft das Werkzeug die neue Datei auch in Eigenschaften, Lesezeichen und Metadaten auf Reste und säubert sie bei Bedarf. Formularfelder unter einem Balken werden geleert. Gescannte Seiten ohne Text haben keinen Text zum Finden (dafür fehlt noch OCR) und lassen sich nur über "boxes" (Bereiche) schwärzen. Mit dry_run=true wird nur gezeigt, was getroffen würde. Immer zuerst dry_run oder pdf_find, dann dem Nutzer die Trefferliste zeigen.',
-    inputSchema: { type: 'object', properties: { file: FILE, out: OUT, terms: { type: 'array', items: { type: 'string' } }, regex: { type: 'array', items: { type: 'string' } }, kinds: { type: 'array', items: { type: 'string', enum: Object.keys(KINDS) } }, boxes: { type: 'array', description: 'Bereiche in Anteilen der Seite (0–1, von links oben)', items: { type: 'object', properties: { page: { type: 'number' }, x: { type: 'number' }, y: { type: 'number' }, w: { type: 'number' }, h: { type: 'number' } }, required: ['page', 'x', 'y', 'w', 'h'] } }, pages: PAGES, dry_run: { type: 'boolean' } }, required: ['file'] },
+  { name: 'pdf_redact', description: 'TRUE redaction with preserved structure. The characters under the bar are deleted directly from the page code (not just covered); fonts, layout, links, bookmarks and forms stay as in the original. Only when that is not safe (e.g. a photo or graphic under the bar) is that page rebuilt as an image with an exact text layer; this is reported in the result under "seiten". Afterwards the tool also checks the new file for leftovers in properties, bookmarks and metadata and cleans them if needed. Form fields under a bar are cleared. Scanned pages without text have nothing to search (run pdf_ocr first) and can only be redacted via "boxes" (areas). With dry_run=true it only shows what would be hit. Always run dry_run or pdf_find first, then show the user the list of matches.',
+    inputSchema: { type: 'object', properties: { file: FILE, out: OUT, terms: { type: 'array', items: { type: 'string' } }, regex: { type: 'array', items: { type: 'string' } }, kinds: { type: 'array', items: { type: 'string', enum: Object.keys(KINDS) } }, boxes: { type: 'array', description: 'Areas as fractions of the page (0–1, from the top left)', items: { type: 'object', properties: { page: { type: 'number' }, x: { type: 'number' }, y: { type: 'number' }, w: { type: 'number' }, h: { type: 'number' } }, required: ['page', 'x', 'y', 'w', 'h'] } }, pages: PAGES, dry_run: { type: 'boolean' } }, required: ['file'] },
     run: async (a) => {
       const bytes = readPdf(a.file);
       if (a.dry_run) {
         const r = await redact(bytes, a);
-        return { dry_run: true, would_redact: r.found, pages: r.pagesChanged, hinweis: r.found.length ? undefined : 'Nichts gefunden – es wurde nichts geändert.' };
+        return { dry_run: true, would_redact: r.found, pages: r.pagesChanged, note: r.found.length ? undefined : 'Nothing found – nothing was changed.' };
       }
       const r = await redactVerified(bytes, a);
-      if (!r.bytes) return { hinweis: 'Nichts gefunden – es wurde nichts geändert.' };
-      const saved = write(freeName(a.file, 'geschwaerzt', a.out), r.bytes);
+      if (!r.bytes) return { note: 'Nothing found – nothing was changed.' };
+      const saved = write(freeName(a.file, 'redacted', a.out), r.bytes);
       const v = r.verification;
-      return { file: saved, redacted_count: r.found.length, pages: r.pagesChanged, found: r.found, seiten: r.modes, verification: v.ok ? { ok: true, hinweis: 'Geprüft: kein geschwärzter Text mehr in Seiteninhalt, Datenströmen, Eigenschaften oder Lesezeichen.', gesaeubert: v.scrubbed.length ? v.scrubbed : undefined } : { ok: false, remaining: v.remaining, warnung: 'In der Datei sind noch Reste! Nicht weitergeben.' } };
+      return { file: saved, redacted_count: r.found.length, pages: r.pagesChanged, found: r.found, page_modes: r.modes, verification: v.ok ? { ok: true, note: 'Verified: no redacted text remains in page content, data streams, properties or bookmarks.', gesaeubert: v.scrubbed.length ? v.scrubbed : undefined } : { ok: false, remaining: v.remaining, warnung: 'Leftovers remain in the file! Do not share it.' } };
     } },
-  { name: 'pdf_merge', description: 'Fügt mehrere PDFs in der angegebenen Reihenfolge zusammen.', inputSchema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } }, out: { type: 'string', description: 'Name der neuen Datei (Pflicht)' } }, required: ['files', 'out'] },
+  { name: 'pdf_merge', description: 'Merges several PDFs in the given order.', inputSchema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } }, out: { type: 'string', description: 'Name of the new file (required)' } }, required: ['files', 'out'] },
     run: async (a) => ({ file: write(freeName(a.files[0], 'x', a.out), await ops.merge(a.files.map(readPdf))) }) },
-  { name: 'pdf_split', description: 'Teilt eine PDF in mehrere Dateien: nach Bereichen ("1-3,5,7-") oder alle N Seiten.', inputSchema: { type: 'object', properties: { file: FILE, ranges: { type: 'string' }, every: { type: 'number' } }, required: ['file'] },
+  { name: 'pdf_split', description: 'Splits a PDF into several files: by ranges ("1-3,5,7-") or every N pages.', inputSchema: { type: 'object', properties: { file: FILE, ranges: { type: 'string' }, every: { type: 'number' } }, required: ['file'] },
     run: async (a) => {
       const parts = await ops.split(readPdf(a.file), a.every ? { every: a.every } : { ranges: a.ranges });
       return { files: parts.map((p) => write(freeName(a.file, p.label), p.bytes)) };
     } },
-  { name: 'pdf_extract_pages', description: 'Legt eine neue PDF nur mit den genannten Seiten an (in genannter Reihenfolge, Wiederholungen erlaubt).', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, out: OUT }, required: ['file', 'pages'] },
-    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'auszug', a.out), await ops.reorder(b, parsePages(a.pages, n))) }; } },
-  { name: 'pdf_delete_pages', description: 'Entfernt Seiten (Ergebnis als neue Datei).', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, out: OUT }, required: ['file', 'pages'] },
-    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'gekuerzt', a.out), await ops.remove(b, parsePages(a.pages, n))) }; } },
-  { name: 'pdf_rotate', description: 'Dreht Seiten um 90, 180 oder 270 Grad im Uhrzeigersinn.', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, degrees: { type: 'number', enum: [90, 180, 270] }, out: OUT }, required: ['file', 'degrees'] },
-    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'gedreht', a.out), await ops.rotate(b, parsePages(a.pages, n), a.degrees)) }; } },
-  { name: 'pdf_reorder', description: 'Ordnet die Seiten neu: "order" nennt die alten Seitenzahlen in neuer Reihenfolge, z. B. [3,1,2].', inputSchema: { type: 'object', properties: { file: FILE, order: { type: 'array', items: { type: 'number' } }, out: OUT }, required: ['file', 'order'] },
-    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'umsortiert', a.out), await ops.reorder(b, parsePages(a.order, n))) }; } },
-  { name: 'pdf_crop', description: 'Schneidet Ränder ab (in Millimetern, bezogen auf die angezeigte Seite).', inputSchema: { type: 'object', properties: { file: FILE, top_mm: { type: 'number' }, right_mm: { type: 'number' }, bottom_mm: { type: 'number' }, left_mm: { type: 'number' }, pages: PAGES, out: OUT }, required: ['file'] },
-    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b), k = 2.835; return { file: write(freeName(a.file, 'zugeschnitten', a.out), await ops.crop(b, { top: (a.top_mm || 0) * k, right: (a.right_mm || 0) * k, bottom: (a.bottom_mm || 0) * k, left: (a.left_mm || 0) * k }, parsePages(a.pages, n))) }; } },
-  { name: 'pdf_number_pages', description: 'Setzt Seitenzahlen. format: {n} = Seite, {N} = Gesamtzahl, z. B. "Seite {n} von {N}". pos: top-left|top-center|top-right|bottom-left|bottom-center|bottom-right.', inputSchema: { type: 'object', properties: { file: FILE, format: { type: 'string' }, pos: { type: 'string' }, start: { type: 'number' }, out: OUT }, required: ['file'] },
-    run: async (a) => ({ file: write(freeName(a.file, 'nummeriert', a.out), await ops.numberPages(readPdf(a.file), { format: a.format || '{n}', pos: a.pos || 'bottom-center', start: a.start || 1 })) }) },
-  { name: 'pdf_compress', description: 'Leichtes Verkleinern (Struktur neu schreiben, Metadaten entfernen). Wirkt vor allem bei großen Dateien mit Altlasten.', inputSchema: { type: 'object', properties: { file: FILE, out: OUT }, required: ['file'] },
-    run: async (a) => { const b = readPdf(a.file), o = await ops.optimize(b); if (o.length >= b.length) return { changed: false, hinweis: 'Keine Ersparnis möglich – nichts geschrieben.' }; return { file: write(freeName(a.file, 'klein', a.out), o), before: b.length, after: o.length }; } }
+  { name: 'pdf_extract_pages', description: 'Creates a new PDF with only the listed pages (in the listed order, repeats allowed).', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, out: OUT }, required: ['file', 'pages'] },
+    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'extract', a.out), await ops.reorder(b, parsePages(a.pages, n))) }; } },
+  { name: 'pdf_delete_pages', description: 'Removes pages (result is a new file).', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, out: OUT }, required: ['file', 'pages'] },
+    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'trimmed', a.out), await ops.remove(b, parsePages(a.pages, n))) }; } },
+  { name: 'pdf_rotate', description: 'Rotates pages by 90, 180 or 270 degrees clockwise.', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, degrees: { type: 'number', enum: [90, 180, 270] }, out: OUT }, required: ['file', 'degrees'] },
+    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'rotated', a.out), await ops.rotate(b, parsePages(a.pages, n), a.degrees)) }; } },
+  { name: 'pdf_reorder', description: 'Reorders the pages: "order" lists the old page numbers in the new order, e.g. [3,1,2].', inputSchema: { type: 'object', properties: { file: FILE, order: { type: 'array', items: { type: 'number' } }, out: OUT }, required: ['file', 'order'] },
+    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b); return { file: write(freeName(a.file, 'reordered', a.out), await ops.reorder(b, parsePages(a.order, n))) }; } },
+  { name: 'pdf_crop', description: 'Trims margins (in millimeters, relative to the displayed page).', inputSchema: { type: 'object', properties: { file: FILE, top_mm: { type: 'number' }, right_mm: { type: 'number' }, bottom_mm: { type: 'number' }, left_mm: { type: 'number' }, pages: PAGES, out: OUT }, required: ['file'] },
+    run: async (a) => { const b = readPdf(a.file), n = await ops.pageCount(b), k = 2.835; return { file: write(freeName(a.file, 'cropped', a.out), await ops.crop(b, { top: (a.top_mm || 0) * k, right: (a.right_mm || 0) * k, bottom: (a.bottom_mm || 0) * k, left: (a.left_mm || 0) * k }, parsePages(a.pages, n))) }; } },
+  { name: 'pdf_number_pages', description: 'Adds page numbers. format: {n} = page, {N} = total, e.g. "Page {n} of {N}". pos: top-left|top-center|top-right|bottom-left|bottom-center|bottom-right.', inputSchema: { type: 'object', properties: { file: FILE, format: { type: 'string' }, pos: { type: 'string' }, start: { type: 'number' }, out: OUT }, required: ['file'] },
+    run: async (a) => ({ file: write(freeName(a.file, 'numbered', a.out), await ops.numberPages(readPdf(a.file), { format: a.format || '{n}', pos: a.pos || 'bottom-center', start: a.start || 1 })) }) },
+  { name: 'pdf_compress', description: 'Light size reduction (rewrites the structure, removes metadata). Mostly helps with large files carrying legacy baggage.', inputSchema: { type: 'object', properties: { file: FILE, out: OUT }, required: ['file'] },
+    run: async (a) => { const b = readPdf(a.file), o = await ops.optimize(b); if (o.length >= b.length) return { changed: false, note: 'No savings possible – nothing written.' }; return { file: write(freeName(a.file, 'compressed', a.out), o), before: b.length, after: o.length }; } },
+  { name: 'pdf_form_fields', description: 'Lists the fillable form fields (AcroForm) with name, type (text, checkbox, dropdown, list, radio, signature), current value, allowed options, page and whether the field is read-only or required. Use this before pdf_fill_form. Signature fields are only listed, never filled.', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
+    run: async (a) => formFields(readPdf(a.file)) },
+  { name: 'pdf_fill_form', description: 'Fills form fields and writes a new PDF. "values" maps field names (from pdf_form_fields) to a string, true/false (checkbox) or an option. Fields that cannot be filled are reported in "problems". Show the user what you will enter and fill only after approval. Never enter passwords, ID numbers or other credentials on your own. flatten=true makes the result non-editable.', inputSchema: { type: 'object', properties: { file: FILE, out: OUT, values: { type: 'object', description: 'Field name -> value' }, flatten: { type: 'boolean', description: 'Make the filled form non-editable (default false)' } }, required: ['file', 'values'] },
+    run: async (a) => { const r = await fillForm(readPdf(a.file), a.values, { flatten: !!a.flatten }); if (!r.bytes) return { changed: false, problems: r.problems, note: 'Nothing was filled – nothing written.' }; return { file: write(freeName(a.file, a.flatten ? 'filled_flat' : 'filled', a.out), r.bytes), filled: r.filled, problems: r.problems, flattened: r.flattened }; } },
+  { name: 'pdf_flatten_form', description: 'Turns the form fields into fixed page content (nothing editable any more) and writes a new PDF.', inputSchema: { type: 'object', properties: { file: FILE, out: OUT }, required: ['file'] },
+    run: async (a) => { const r = await flattenForm(readPdf(a.file)); if (!r.bytes) return { changed: false, note: 'The PDF has no form fields.' }; return { file: write(freeName(a.file, 'flat', a.out), r.bytes), fields_flattened: r.count }; } },
+  { name: 'pdf_watermark', description: 'Adds a text watermark or stamp (for example DRAFT, CONFIDENTIAL) and writes a new PDF. position: center (diagonal, default), top or bottom. color: gray, red, blue, green, black or #rrggbb. Only Latin text is supported.', inputSchema: { type: 'object', properties: { file: FILE, out: OUT, text: { type: 'string' }, pages: PAGES, position: { type: 'string', enum: ['center', 'top', 'bottom'] }, opacity: { type: 'number', description: '0.02 to 1, default 0.25' }, size: { type: 'number', description: 'Maximum font size in pt, default 64' }, angle: { type: 'number', description: 'Degrees for center position, default 45' }, color: { type: 'string' } }, required: ['file', 'text'] },
+    run: async (a) => { const r = await watermark(readPdf(a.file), { text: a.text, pages: a.pages, position: a.position, opacity: a.opacity, size: a.size, angle: a.angle, color: a.color }); return { file: write(freeName(a.file, 'watermarked', a.out), r.bytes), pages: r.pages }; } },
+  { name: 'pdf_metadata', description: 'Reads, changes or removes the document metadata (title, author, subject, keywords, creator, producer, XMP). action "read" returns it. action "set" changes the given fields in "set" (title, author, subject, keywords, creator, producer; empty string removes a field). action "clear" removes all metadata – use this before sharing a document. set and clear write a new PDF.', inputSchema: { type: 'object', properties: { file: FILE, out: OUT, action: { type: 'string', enum: ['read', 'set', 'clear'] }, set: { type: 'object', description: 'For action "set": field -> new value' } }, required: ['file', 'action'] },
+    run: async (a) => {
+      if (a.action === 'read') return readMetadata(readPdf(a.file));
+      if (a.action !== 'set' && a.action !== 'clear') throw new Error('action must be read, set or clear.');
+      const r = await writeMetadata(readPdf(a.file), { set: a.action === 'set' ? a.set : {}, clear: a.action === 'clear' });
+      const out = write(freeName(a.file, a.action === 'clear' ? 'clean' : 'meta', a.out), r.bytes);
+      return { file: out, metadata_after: await readMetadata(r.bytes) };
+    } },
 ];
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
 
-const INSTRUCTIONS = 'Werkzeuge für PDF-Dateien. Arbeite vorsichtig: Originale bleiben unverändert, Ergebnisse sind neue Dateien. Beim Schwärzen immer zuerst suchen/dry_run, die Treffer dem Nutzer zeigen und erst nach seiner Zustimmung schwärzen. Eingescannte Seiten (pdf_info: seiten_ohne_text) haben keinen Text: erst pdf_ocr, dann suchen/lesen/schwärzen. Unterschreiben und Absenden macht der Nutzer selbst.';
+const INSTRUCTIONS = 'Tools for PDF files. Work carefully: originals stay unchanged, results are new files. When redacting, always search/dry_run first, show the matches to the user and redact only after their approval. Scanned pages (pdf_info: pages_without_text) have no text: run pdf_ocr first, then search/read/redact. Signing and sending is done by the user.';
 
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 async function handle(msg) {
   const { id, method, params } = msg;
-  if (id === undefined) return; // Benachrichtigung
+  if (id === undefined) return; // notification
   try {
-    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'werkbank', version: '0.7.5' }, instructions: INSTRUCTIONS } });
+    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'werkbank', version: '0.8.0' }, instructions: INSTRUCTIONS } });
     if (method === 'ping') return send({ jsonrpc: '2.0', id, result: {} });
     if (method === 'tools/list') return send({ jsonrpc: '2.0', id, result: { tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) } });
     if (method === 'tools/call') {
       const t = byName.get(params?.name);
-      if (!t) return send({ jsonrpc: '2.0', id, error: { code: -32602, message: `Unbekanntes Werkzeug: ${params?.name}` } });
+      if (!t) return send({ jsonrpc: '2.0', id, error: { code: -32602, message: `Unknown tool: ${params?.name}` } });
       try {
         const r = await t.run(params.arguments || {});
         return send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] } });
       } catch (e) {
-        return send({ jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: 'Fehler: ' + (e.message || e) }] } });
+        return send({ jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: 'Error: ' + (e.message || e) }] } });
       }
     }
-    return send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Methode nicht unterstützt: ' + method } });
+    return send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not supported: ' + method } });
   } catch (e) { send({ jsonrpc: '2.0', id, error: { code: -32603, message: String(e.message || e) } }); }
 }
 
 let buf = '';
 process.stdin.setEncoding('utf8');
-process.stdin.on('data', (c) => { buf += c; let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (line) { try { handle(JSON.parse(line)); } catch { /* ungültige Zeile ignorieren */ } } } });
+process.stdin.on('data', (c) => { buf += c; let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (line) { try { handle(JSON.parse(line)); } catch { /* ignore invalid line */ } } } });
