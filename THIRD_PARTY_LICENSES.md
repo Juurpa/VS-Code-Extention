@@ -583,7 +583,7 @@ Die WebAssembly-Datei bündelt weitere Bibliotheken (u. a. FreeType, libjpeg-tur
 
 ## @pdf-lib/fontkit 1.1.1
 
-Lizenz: MIT (laut package.json) · https://github.com/Hopding/fontkit · Enthalten in: node_modules/@pdf-lib/fontkit. HINWEIS: Das Paket liefert keine eigene Lizenzdatei mit; der Text unten entspricht der MIT-Lizenz des Originalprojekts fontkit. Vor der Veröffentlichung gegen das Original prüfen.
+Lizenz: MIT (laut package.json) · https://github.com/Hopding/fontkit · Enthalten in: node_modules/@pdf-lib/fontkit. Hinweis: Das Paket liefert keine eigene Lizenzdatei mit. Das Originalprojekt fontkit (npm-Paket fontkit) gibt in seiner package.json ebenfalls MIT an; der Text unten ist der Standardtext der MIT-Lizenz mit den Urhebern des Originals und des Forks.
 
 ```
 MIT License
@@ -619,4 +619,36 @@ Die eingebaute Texterkennung läuft vollständig lokal als WebAssembly, ohne Net
 | wasm-feature-detect | 1.9.0 | Apache-2.0 | node_modules/wasm-feature-detect |
 | zlibjs | 0.3.1 | MIT | node_modules/zlibjs |
 
-Der Apache-2.0-Text steht in `LICENSE` dieses Projekts. Die jeweiligen Lizenztexte der MIT- und BSD-Pakete liegen als Datei im jeweiligen Ordner unter node_modules. HINWEIS: Vor der öffentlichen Veröffentlichung die Lizenz von Leptonica (in tesseract.js-core gebündelt) und die Herkunftsangabe der Sprachdaten (tesseract-ocr/tessdata_best, Apache-2.0) gegen die Originalprojekte prüfen und den Wortlaut hier ergänzen.
+Der Apache-2.0-Text steht in `LICENSE` dieses Projekts. Die jeweiligen Lizenztexte der MIT- und BSD-Pakete liegen als Datei im jeweiligen Ordner unter node_modules. Die Lizenz von Leptonica (in tesseract.js-core gebündelt) steht unten, Wortlaut aus dem Originalprojekt (github.com/DanBloomberg/leptonica, leptonica-license.txt). Die Sprachdaten stammen aus tesseract-ocr/tessdata_best (Apache-2.0, am Original geprüft).
+
+### Leptonica
+
+Lizenz: BSD-artig (2 Bedingungen) · Copyright (C) 2001-2020 Leptonica · https://github.com/DanBloomberg/leptonica · Enthalten in: tesseract.js-core
+
+```
+/*====================================================================*
+ -  Copyright (C) 2001-2020 Leptonica.  All rights reserved.
+ -
+ -  Redistribution and use in source and binary forms, with or without
+ -  modification, are permitted provided that the following conditions
+ -  are met:
+ -  1. Redistributions of source code must retain the above copyright
+ -     notice, this list of conditions and the following disclaimer.
+ -  2. Redistributions in binary form must reproduce the above
+ -     copyright notice, this list of conditions and the following
+ -     disclaimer in the documentation and/or other materials
+ -     provided with the distribution.
+ -
+ -  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ -  ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ -  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ -  A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL ANY
+ -  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ -  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ -  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ -  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ -  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ -  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ -  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *====================================================================*/
+```
