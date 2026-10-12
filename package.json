@@ -1,7 +1,7 @@
 {
   "name": "pdf-workbench",
   "displayName": "Werkbank – PDF Editor, Redact & OCR with AI",
-  "description": "Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice (Claude Code, Gemini, Ollama …). Deutsch: PDF lesen, markieren, bearbeiten, schwärzen, unterschreiben – lokal und mit KI.",
+  "description": "Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice (Claude Code, Gemini, Ollama …).",
   "version": "0.7.5",
   "publisher": "Juurpa",
   "license": "Apache-2.0",
@@ -9,8 +9,7 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other",
-    "Education"
+    "Other"
   ],
   "icon": "media/icon.png",
   "main": "./extension.js",
@@ -31,35 +30,35 @@
     "commands": [
       {
         "command": "werkbank.setupClaudeMd",
-        "title": "Werkbank: Claude Code Hinweis in CLAUDE.md eintragen"
+        "title": "Werkbank: Add Claude Code hint to CLAUDE.md"
       },
       {
         "command": "werkbank.setupMcp",
-        "title": "Werkbank: PDF-Werkzeuge für die KI einrichten (MCP)"
+        "title": "Werkbank: Set up PDF tools for AI (MCP)"
       },
       {
         "command": "werkbank.revealData",
-        "title": "Werkbank: Ordner mit Texten und Markierungen zeigen"
+        "title": "Werkbank: Show folder with texts and markings"
       },
       {
         "command": "werkbank.chooseAi",
-        "title": "Werkbank: KI-Anbieter wählen"
+        "title": "Werkbank: Choose AI provider"
       },
       {
         "command": "werkbank.setApiKey",
-        "title": "Werkbank: API-Schlüssel setzen"
+        "title": "Werkbank: Set API key"
       },
       {
         "command": "werkbank.showLicenses",
-        "title": "Werkbank: Lizenzen anzeigen"
+        "title": "Werkbank: Show licenses"
       },
       {
         "command": "werkbank.reportProblem",
-        "title": "Werkbank: Fehler melden …"
+        "title": "Werkbank: Report a problem…"
       },
       {
         "command": "werkbank.sendFeedback",
-        "title": "Werkbank: Feedback geben …"
+        "title": "Werkbank: Send feedback…"
       }
     ],
     "configuration": {
@@ -68,42 +67,42 @@
         "werkbank.dataFolder": {
           "type": "string",
           "default": "_werkbank",
-          "description": "Ordner im Projekt, in dem Text, Markierungen und Lernhilfen jeder PDF abgelegt werden."
+          "description": "Folder in the project where the text, markings and study aids of each PDF are stored."
         },
         "werkbank.openClaudeAfterPrompt": {
           "type": "boolean",
           "default": true,
-          "description": "Nach dem Kopieren eines Prompts automatisch Claude Code öffnen."
+          "description": "Automatically open Claude Code after copying a prompt."
         },
         "werkbank.ai.provider": {
           "type": "string",
           "default": "claude-code",
-          "description": "Welche KI die Lernaufgaben bearbeitet: claude-code, zwischenablage, openai oder die ID eines Anbieters aus einer anderen Erweiterung."
+          "description": "Which AI handles the tasks: claude-code, zwischenablage (clipboard only), openai, or the ID of a provider registered by another extension."
         },
         "werkbank.ai.endpoint": {
           "type": "string",
           "default": "https://api.openai.com/v1",
-          "description": "Basisadresse einer OpenAI-kompatiblen Schnittstelle. Beispiele: https://generativelanguage.googleapis.com/v1beta/openai (Gemini), http://localhost:11434/v1 (Ollama)."
+          "description": "Base URL of an OpenAI-compatible API. Examples: https://generativelanguage.googleapis.com/v1beta/openai (Gemini), http://localhost:11434/v1 (Ollama)."
         },
         "werkbank.ai.model": {
           "type": "string",
           "default": "",
-          "description": "Modellname, z. B. gpt-4o-mini, gemini-2.0-flash oder llama3.1."
+          "description": "Model name, e.g. gpt-4o-mini, gemini-2.0-flash or llama3.1."
         },
         "werkbank.ai.maxChars": {
           "type": "number",
           "default": 60000,
-          "description": "Höchstmenge PDF-Text, die an einen Anbieter geschickt wird."
+          "description": "Maximum amount of PDF text (characters) sent to a provider."
         },
         "werkbank.feedback.githubRepo": {
           "type": "string",
           "default": "",
-          "description": "GitHub-Adresse (https://github.com/Name/Repo), an die Fehlermeldungen gehen. Leer: Adresse aus bugs/repository der Erweiterung."
+          "description": "GitHub URL (https://github.com/Name/Repo) that problem reports go to. Empty: use the address from the extension's bugs/repository."
         },
         "werkbank.feedback.email": {
           "type": "string",
           "default": "",
-          "description": "E-Mail-Adresse für Fehlermeldungen und Feedback."
+          "description": "Email address for problem reports and feedback."
         }
       }
     }
@@ -123,7 +122,6 @@
     "redact",
     "ocr",
     "mcp",
-    "schwärzen",
     "claude",
     "documents",
     "signature"

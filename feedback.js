@@ -4,7 +4,7 @@ const os = require('os');
 const path = require('path');
 const R = require('./report');
 
-const errors = []; // Ringspeicher der letzten Fehlermeldungen (nur Text, keine Inhalte)
+const errors = []; // ring buffer of the latest error messages (text only, no content)
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 
 function record(where, err) {
@@ -26,30 +26,30 @@ function target(ctx) {
 
 async function collect(ctx, pdf) {
   const c = vscode.workspace.getConfiguration('werkbank');
-  let mcp = 'nein';
+  let mcp = 'no';
   try {
     const ws = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
-    if (ws) { const b = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(ws.uri, '.mcp.json')); mcp = /"werkbank"/.test(Buffer.from(b).toString('utf8')) ? 'eingerichtet' : 'nein'; }
-  } catch (e) { /* keine Datei */ }
+    if (ws) { const b = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(ws.uri, '.mcp.json')); mcp = /"werkbank"/.test(Buffer.from(b).toString('utf8')) ? 'set up' : 'no'; }
+  } catch (e) { /* no file */ }
   return {
     items: [
       ['Werkbank', (ctx.extension.packageJSON || {}).version],
       ['VS Code', `${vscode.version} (${vscode.env.appName})`],
       ['System', `${process.platform} ${process.arch}, ${os.release()}`],
-      ['Sprache', vscode.env.language],
-      ['KI-Anbieter', c.get('ai.provider') || '–'],
-      ['KI-Werkzeuge (MCP)', mcp]
+      ['Language', vscode.env.language],
+      ['AI provider', c.get('ai.provider') || '–'],
+      ['AI tools (MCP)', mcp]
     ],
     errors: errors.slice(),
     pdf: pdf || null
   };
 }
 
-/** Öffnet den Dialog. opt: { type, title, what, pdf } */
+/** Opens the dialog. opt: { type, title, what, pdf } */
 async function open(ctx, opt = {}) {
   const diag = await collect(ctx, opt.pdf);
   const dest = target(ctx);
-  const panel = vscode.window.createWebviewPanel('werkbank.feedback', opt.type === 'bug' || !opt.type ? 'Fehler melden' : 'Feedback geben', vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
+  const panel = vscode.window.createWebviewPanel('werkbank.feedback', opt.type === 'bug' || !opt.type ? 'Report a Problem' : 'Give Feedback', vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
   const n = Array.from({ length: 24 }, () => Math.random().toString(36)[2]).join('');
   panel.webview.html = html(n, panel.webview.cspSource);
   const build = (form) => R.buildReport(form, diag, scrubOpt());
@@ -62,24 +62,24 @@ async function open(ctx, opt = {}) {
         panel.webview.postMessage({ type: 'preview', text: build(f), hints: R.privacyHints(own) });
       } else if (m.type === 'act') {
         const f = m.form, body = build(f), full = `# ${R.titleOf(f)}\n\n${body}\n`;
-        if (m.kind === 'copy') { await vscode.env.clipboard.writeText(full); vscode.window.showInformationMessage('Bericht kopiert.'); }
+        if (m.kind === 'copy') { await vscode.env.clipboard.writeText(full); vscode.window.showInformationMessage('Report copied.'); }
         else if (m.kind === 'file') {
           const wsd = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
-          const def = vscode.Uri.file(path.join(wsd ? wsd.uri.fsPath : os.homedir(), 'werkbank-bericht.md'));
+          const def = vscode.Uri.file(path.join(wsd ? wsd.uri.fsPath : os.homedir(), 'werkbank-report.md'));
           const out = await vscode.window.showSaveDialog({ defaultUri: def, filters: { Markdown: ['md'] } });
-          if (out) { await vscode.workspace.fs.writeFile(out, Buffer.from(full, 'utf8')); vscode.window.showInformationMessage('Bericht gespeichert: ' + path.basename(out.fsPath)); }
+          if (out) { await vscode.workspace.fs.writeFile(out, Buffer.from(full, 'utf8')); vscode.window.showInformationMessage('Report saved: ' + path.basename(out.fsPath)); }
         } else if (m.kind === 'github') {
           const g = R.githubUrl(dest.repo, f, body);
-          if (!g) { vscode.window.showWarningMessage('Es ist noch keine GitHub-Adresse für Meldungen hinterlegt (Einstellung werkbank.feedback.githubRepo).'); return; }
+          if (!g) { vscode.window.showWarningMessage('No GitHub address for reports has been configured yet (setting werkbank.feedback.githubRepo).'); return; }
           if (g.cut) await vscode.env.clipboard.writeText(full);
           await vscode.env.openExternal(vscode.Uri.parse(g.url));
-          vscode.window.showInformationMessage(g.cut ? 'GitHub ist offen. Der Bericht war zu lang für den Link: der vollständige Text liegt in der Zwischenablage, bitte dort einfügen. Gesendet wird erst, wenn du auf GitHub „Submit“ drückst.' : 'GitHub ist offen. Gesendet wird erst, wenn du dort „Submit new issue“ drückst.');
+          vscode.window.showInformationMessage(g.cut ? 'GitHub is open. The report was too long for the link: the full text is in your clipboard, please paste it there. Nothing is sent until you click “Submit” on GitHub.' : 'GitHub is open. Nothing is sent until you click “Submit new issue” there.');
         } else if (m.kind === 'email') {
           const e = R.mailtoUrl(dest.email, f, body);
-          if (!e) { vscode.window.showWarningMessage('Es ist noch keine E-Mail-Adresse für Meldungen hinterlegt (Einstellung werkbank.feedback.email).'); return; }
+          if (!e) { vscode.window.showWarningMessage('No email address for reports has been configured yet (setting werkbank.feedback.email).'); return; }
           await vscode.env.clipboard.writeText(full);
           await vscode.env.openExternal(vscode.Uri.parse(e.url));
-          vscode.window.showInformationMessage('Dein Mailprogramm ist offen. Der vollständige Bericht liegt auch in der Zwischenablage. Gesendet wird erst, wenn du in der Mail auf „Senden“ drückst.');
+          vscode.window.showInformationMessage('Your email app is open. The full report is also in your clipboard. Nothing is sent until you click “Send” in the email.');
         }
       } else if (m.type === 'close') panel.dispose();
     } catch (e) { record('feedback', e); vscode.window.showErrorMessage('Werkbank: ' + (e.message || e)); }
@@ -87,7 +87,7 @@ async function open(ctx, opt = {}) {
 }
 
 function html(n, csp) {
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8">
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${n}';">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -105,37 +105,37 @@ button.p{background:var(--vscode-button-background);color:var(--vscode-button-fo
 pre{white-space:pre-wrap;word-break:break-word;background:var(--vscode-textCodeBlock-background);padding:10px;border-radius:4px;max-height:260px;overflow:auto}
 [hidden]{display:none!important}
 </style></head><body>
-<h2 id="h">Fehler melden</h2>
-<p class="sub">Deine Meldung hilft, Werkbank im nächsten Update zu verbessern. Es wird nichts automatisch gesendet.</p>
-<label for="type">Art der Meldung</label>
-<select id="type"><option value="bug">Fehler</option><option value="wish">Wunsch / Idee</option><option value="praise">Lob / Allgemeines</option></select>
-<label for="title">Kurzer Titel</label><input type="text" id="title" maxlength="100" placeholder="z. B. Schwärzen bricht bei Seite 3 ab">
-<label for="what" id="whatL">Was ist passiert?</label><textarea id="what"></textarea>
+<h2 id="h">Report a Problem</h2>
+<p class="sub">Your report helps improve Werkbank in the next update. Nothing is sent automatically.</p>
+<label for="type">Type of report</label>
+<select id="type"><option value="bug">Bug</option><option value="wish">Request / Idea</option><option value="praise">Praise / General</option></select>
+<label for="title">Short title</label><input type="text" id="title" maxlength="100" placeholder="e.g. Redaction fails on page 3">
+<label for="what" id="whatL">What happened?</label><textarea id="what"></textarea>
 <div id="bugOnly">
-<label for="expected">Was hattest du erwartet? <span class="opt">(optional)</span></label><textarea id="expected" style="min-height:48px"></textarea>
-<label for="steps">Schritte zum Nachstellen <span class="opt">(optional)</span></label><textarea id="steps" style="min-height:60px" placeholder="1. PDF öffnen&#10;2. Werkzeuge → Schwärzen&#10;3. …"></textarea>
+<label for="expected">What did you expect? <span class="opt">(optional)</span></label><textarea id="expected" style="min-height:48px"></textarea>
+<label for="steps">Steps to reproduce <span class="opt">(optional)</span></label><textarea id="steps" style="min-height:60px" placeholder="1. Open a PDF&#10;2. Tools → Redact&#10;3. …"></textarea>
 </div>
-<label for="contact">Kontakt für Rückfragen <span class="opt">(optional, z. B. E-Mail)</span></label><input type="text" id="contact">
+<label for="contact">Contact for questions <span class="opt">(optional, e.g. email)</span></label><input type="text" id="contact">
 <div id="hints" class="warn" hidden></div>
-<label>Was soll mitgeschickt werden?</label>
-<label class="chk"><input type="checkbox" id="withSystem" checked><span>Systemdaten: Werkbank-, VS-Code- und Windows-Version, KI-Anbieter (kein Schlüssel)</span></label>
-<label class="chk" id="errRow"><input type="checkbox" id="withErrors" checked><span>Letzte Fehlermeldungen von Werkbank (Pfade und Namen werden unkenntlich gemacht)</span></label>
-<label class="chk" id="pdfRow"><input type="checkbox" id="withPdf"><span>Angaben zur geöffneten PDF: Seitenzahl, Größe, Ersteller-Programm. Nie Inhalt oder Dateiname.</span></label>
-<div class="note">Dokumentinhalte, Dateinamen und deine Markierungen werden <b>nie</b> mitgeschickt. Auf GitHub ist eine Meldung öffentlich: trage hier keine privaten Daten ein. Screenshots kannst du dort einfügen, prüfe vorher, dass nichts Privates zu sehen ist.</div>
-<label>Vorschau: genau das wird gesendet</label><pre id="prev"></pre>
+<label>What should be included?</label>
+<label class="chk"><input type="checkbox" id="withSystem" checked><span>System data: Werkbank, VS Code and operating system version, AI provider (no key)</span></label>
+<label class="chk" id="errRow"><input type="checkbox" id="withErrors" checked><span>Recent Werkbank error messages (paths and names are masked)</span></label>
+<label class="chk" id="pdfRow"><input type="checkbox" id="withPdf"><span>Details about the open PDF: page count, size, creator application. Never content or file name.</span></label>
+<div class="note">Document contents, file names and your highlights are <b>never</b> included. A report on GitHub is public: do not enter any private data here. You can add screenshots there; check beforehand that nothing private is visible.</div>
+<label>Preview: exactly this will be sent</label><pre id="prev"></pre>
 <div class="row">
-<button class="p" id="github">Auf GitHub melden</button>
-<button class="p" id="email">Per E-Mail senden</button>
-<button id="file">Als Datei speichern</button>
-<button id="copy">Kopieren</button>
+<button class="p" id="github">Report on GitHub</button>
+<button class="p" id="email">Send by email</button>
+<button id="file">Save as file</button>
+<button id="copy">Copy</button>
 </div>
-<p id="nodest" class="sub" hidden>Für diese Version ist noch kein Empfänger hinterlegt. Kopiere den Bericht oder speichere ihn als Datei und schicke ihn dem Entwickler.</p>
+<p id="nodest" class="sub" hidden>No recipient has been configured for this version yet. Copy the report or save it as a file and send it to the developer.</p>
 <script nonce="${n}">
 const vs=acquireVsCodeApi(),$=(i)=>document.getElementById(i);
 const F=()=>({type:$('type').value,title:$('title').value,what:$('what').value,expected:$('expected').value,steps:$('steps').value,contact:$('contact').value,withSystem:$('withSystem').checked,withErrors:$('withErrors').checked,withPdf:$('withPdf').checked});
 let t;const ask=()=>{clearTimeout(t);t=setTimeout(()=>{vs.postMessage({type:'preview',form:F()});upd();},150)};
-function upd(){const f=F(),bug=f.type==='bug';$('bugOnly').hidden=!bug;$('whatL').textContent=bug?'Was ist passiert?':'Beschreibung';
- $('h').textContent=bug?'Fehler melden':f.type==='wish'?'Wunsch oder Idee':'Feedback geben';
+function upd(){const f=F(),bug=f.type==='bug';$('bugOnly').hidden=!bug;$('whatL').textContent=bug?'What happened?':'Description';
+ $('h').textContent=bug?'Report a Problem':f.type==='wish'?'Request or Idea':'Give Feedback';
  const ok=f.title.trim().length>2&&f.what.trim().length>4;['github','email','file','copy'].forEach(k=>{if(!$(k).dataset.na)$(k).disabled=!ok});}
 ['type','title','what','expected','steps','contact','withSystem','withErrors','withPdf'].forEach(i=>{$(i).addEventListener('input',ask);$(i).addEventListener('change',ask)});
 ['github','email','file','copy'].forEach(k=>$(k).onclick=()=>vs.postMessage({type:'act',kind:k,form:F()}));
@@ -144,7 +144,7 @@ window.addEventListener('message',e=>{const m=e.data;
   [['github',m.dest.github],['email',m.dest.email]].forEach(([k,v])=>{if(!v){$(k).hidden=true;$(k).dataset.na='1'}});
   $('nodest').hidden=m.dest.github||m.dest.email;$('pdfRow').hidden=!m.hasPdf;$('errRow').hidden=!m.hasErrors;if(!m.hasErrors)$('withErrors').checked=false;ask();}
  else if(m.type==='preview'){$('prev').textContent=m.text;const h=$('hints');h.hidden=!m.hints.length;
-  h.textContent=m.hints.length?'Dein Text enthält vermutlich private Angaben ('+m.hints.join(', ')+'). Bitte entfernen, bevor du sendest.':'';}});
+  h.textContent=m.hints.length?'Your text probably contains private details ('+m.hints.join(', ')+'). Please remove them before sending.':'';}});
 vs.postMessage({type:'ready'});
 </script></body></html>`;
 }

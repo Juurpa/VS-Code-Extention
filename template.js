@@ -1,30 +1,30 @@
 'use strict';
 module.exports = `
 <div id="bar">
-  <button class="tb icon" id="btnSide" title="Seitenleiste"><span class="ic" data-i="menu"></span></button>
-  <div class="grp"><input id="pageInput" type="text" inputmode="numeric" value="1" aria-label="Seite"><span class="muted">/ <span id="pageCount">0</span></span></div>
+  <button class="tb icon" id="btnSide" title="Sidebar"><span class="ic" data-i="menu"></span></button>
+  <div class="grp"><input id="pageInput" type="text" inputmode="numeric" value="1" aria-label="Page"><span class="muted">/ <span id="pageCount">0</span></span></div>
   <div class="sep"></div>
-  <button class="tb icon" id="zoomOut" title="Verkleinern"><span class="ic" data-i="minus"></span></button>
+  <button class="tb icon" id="zoomOut" title="Zoom out"><span class="ic" data-i="minus"></span></button>
   <button class="tb" id="zoomLabel" title="Zoom">100 %</button>
-  <button class="tb icon" id="zoomIn" title="Vergrößern"><span class="ic" data-i="plus"></span></button>
+  <button class="tb icon" id="zoomIn" title="Zoom in"><span class="ic" data-i="plus"></span></button>
   <div class="sep"></div>
   <div class="seg">
-  <button class="tb" data-tool="hl" title="Markieren (H)"><span class="ic" data-i="marker"></span><span class="lbl">Markieren</span></button>
-  <button class="tb" data-tool="note" title="Kommentar (C)"><span class="ic" data-i="comment"></span><span class="lbl">Kommentar</span></button>
-  <button class="tb" data-tool="draw" title="Zeichnen (D)"><span class="ic" data-i="pen"></span><span class="lbl">Zeichnen</span></button>
-  <button class="tb" data-tool="erase" title="Radierer (E)"><span class="ic" data-i="eraser"></span><span class="lbl">Radierer</span></button>
+  <button class="tb" data-tool="hl" title="Highlight (H)"><span class="ic" data-i="marker"></span><span class="lbl">Highlight</span></button>
+  <button class="tb" data-tool="note" title="Comment (C)"><span class="ic" data-i="comment"></span><span class="lbl">Comment</span></button>
+  <button class="tb" data-tool="draw" title="Draw (D)"><span class="ic" data-i="pen"></span><span class="lbl">Draw</span></button>
+  <button class="tb" data-tool="erase" title="Eraser (E)"><span class="ic" data-i="eraser"></span><span class="lbl">Eraser</span></button>
   </div>
   <div class="sep"></div>
-  <button class="tb icon" id="tUndo" title="Rückgängig (Strg+Z)" disabled><span class="ic" data-i="undo"></span></button>
-  <button class="tb icon" id="tRedo" title="Wiederholen (Strg+Y)" disabled><span class="ic" data-i="redo"></span></button>
+  <button class="tb icon" id="tUndo" title="Undo (Ctrl+Z)" disabled><span class="ic" data-i="undo"></span></button>
+  <button class="tb icon" id="tRedo" title="Redo (Ctrl+Y)" disabled><span class="ic" data-i="redo"></span></button>
   <div class="sep"></div>
-  <button class="tb" id="tCards" title="Karteikarten aus deinen Markierungen"><span class="ic" data-i="cards"></span><span class="lbl">Karteikarten</span></button>
-  <button class="tb" id="tTools" title="PDF-Werkzeuge"><span class="ic" data-i="tools"></span><span class="lbl">Werkzeuge</span></button>
-  <button class="tb primary" id="tClaude" title="Aufgabe an die KI geben"><span class="ic" data-i="spark"></span><span class="lbl">KI</span></button>
+  <button class="tb" id="tCards" title="Flashcards from your highlights"><span class="ic" data-i="cards"></span><span class="lbl">Flashcards</span></button>
+  <button class="tb" id="tTools" title="PDF tools"><span class="ic" data-i="tools"></span><span class="lbl">Tools</span></button>
+  <button class="tb primary" id="tClaude" title="Give the AI a task"><span class="ic" data-i="spark"></span><span class="lbl">AI</span></button>
   <span class="grow"></span>
-  <button class="tb" id="tFile" title="Änderungen an der PDF speichern" hidden><span class="ic" data-i="save"></span><span class="lbl">Speichern</span></button>
-  <button class="tb" id="tMarks" title="Markierungen als Textdatei öffnen"><span class="ic" data-i="file"></span><span class="lbl">Markierungen</span></button>
-  <button class="tb icon" id="tSave" title="Kopie mit eingebrannten Markierungen und Unterschrift speichern"><span class="ic" data-i="download"></span></button>
+  <button class="tb" id="tFile" title="Save changes to the PDF" hidden><span class="ic" data-i="save"></span><span class="lbl">Save</span></button>
+  <button class="tb" id="tMarks" title="Open highlights as a text file"><span class="ic" data-i="file"></span><span class="lbl">Highlights</span></button>
+  <button class="tb icon" id="tSave" title="Save a copy with highlights and signature burned in"><span class="ic" data-i="download"></span></button>
 </div>
 <div id="toolOpts" hidden></div>
 <div id="main">

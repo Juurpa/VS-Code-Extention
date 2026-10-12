@@ -1,4 +1,4 @@
-// Gemeinsamer Zustand und kleine UI-Helfer
+// Shared state and small UI helpers
 export const S = {
   pdf: null, bytes: null, name: '', fp: '', zoom: 1, tool: 'select',
   hlColor: '#fff176', penColor: '#e53935', penW: 3,
@@ -64,8 +64,8 @@ export function fillIcons(root = document) {
 let toastTimer;
 export function toast(msg, ms = 3200) {
   const t = $('#toast');
-  const isErr = /^Fehler/.test(msg);
-  t.textContent = isErr ? msg + '  (Klicken zum Melden)' : msg; t.hidden = false;
+  const isErr = /^Error/.test(msg);
+  t.textContent = isErr ? msg + '  (click to report)' : msg; t.hidden = false;
   t.style.pointerEvents = isErr ? 'auto' : ''; t.style.cursor = isErr ? 'pointer' : '';
   t.onclick = isErr ? () => { t.hidden = true; S.api.post && S.api.post({ type: 'report', kind: 'bug', what: msg }); } : null;
   if (isErr && S.api.post) S.api.post({ type: 'jsError', message: msg.slice(0, 300) });
@@ -107,7 +107,7 @@ export const store = {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage?.local) await chrome.storage.local.set({ [k]: v });
       else localStorage.setItem(k, JSON.stringify(v));
-    } catch (e) { /* Speicher voll o. Ä. */ }
+    } catch (e) { /* storage full or similar */ }
   }
 };
 

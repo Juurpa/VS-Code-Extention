@@ -1,7 +1,7 @@
-// Schwärzen mit erhaltener Struktur: die Buchstaben unter den Balken werden direkt aus dem Seitencode gelöscht,
-// alles andere (Schriften, Layout, Links, Lesezeichen, Formulare) bleibt unverändert.
-// Nur wenn das nicht sicher geht (Bild/Grafik unter dem Balken, ungewöhnlicher Aufbau), wird die Seite als Notlösung
-// zu einem Bild mit exaktem Textlayer.
+// Redaction with preserved structure: the letters under the bars are deleted directly from the page code,
+// everything else (fonts, layout, links, bookmarks, forms) stays unchanged.
+// Only when that is not safe (image/graphic under the bar, unusual structure) is the page turned, as a fallback,
+// into an image with an exact text layer.
 import * as pdfjs from '../media/lib/pdf.min.mjs';
 import fontkit from '@pdf-lib/fontkit';
 import fs from 'node:fs';
@@ -19,7 +19,7 @@ export async function openJs(bytes) {
   return pdfjs.getDocument({ data: new Uint8Array(bytes), useWorkerFetch: false, isEvalSupported: false, verbosity: 0, standardFontDataUrl: urlOf('standard_fonts/'), cMapUrl: urlOf('cmaps/'), cMapPacked: true }).promise;
 }
 
-// ---------------------------------------------------------------- Geometrie
+// ---------------------------------------------------------------- Geometry
 const mul = (a, b) => [a[0] * b[0] + a[1] * b[2], a[0] * b[1] + a[1] * b[3], a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3], a[4] * b[0] + a[5] * b[2] + b[4], a[4] * b[1] + a[5] * b[3] + b[5]];
 const apply = (m, x, y) => [x * m[0] + y * m[2] + m[4], x * m[1] + y * m[3] + m[5]];
 const bboxOf = (pts) => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))];
@@ -31,8 +31,8 @@ function hitsBars(box, bars, frac = 0.2) {
 }
 const fmt = (v) => String(Math.round(v * 10000) / 10000);
 
-// ---------------------------------------------------------------- pdf.js-Analyse einer Seite
-/** Läuft über die Operatorliste von pdf.js und liefert alle Textanweisungen mit Zeichenpositionen (Benutzerkoordinaten). */
+// ---------------------------------------------------------------- pdf.js analysis of a page
+/** Walks the operator list from pdf.js and returns all text instructions with character positions (user coordinates). */
 async function analyze(page, bars) {
   const O = pdfjs.OPS, ol = await page.getOperatorList({ annotationMode: pdfjs.AnnotationMode.DISABLE });
   let st = { ctm: [1, 0, 0, 1, 0, 0], tm: [1, 0, 0, 1, 0, 0], tlm: [1, 0, 0, 1, 0, 0], size: 0, Tc: 0, Tw: 0, Th: 1, rise: 0, leading: 0, fm0: 0.001, vertical: false, type3: false };
@@ -85,7 +85,7 @@ async function analyze(page, bars) {
       case O.paintImageXObject: case O.paintInlineImageXObject: case O.paintImageMaskXObject: case O.paintSolidColorImageMask: images.push(unit()); break;
       case O.paintImageXObjectRepeat: case O.paintImageMaskXObjectGroup: case O.paintInlineImageXObjectGroup: groupImages = true; images.push(unit()); break;
       case O.constructPath: {
-        // pdf.js 4.x: [ops[], koordinaten[], [minX, minY, maxX, maxY]]
+        // pdf.js 4.x: [ops[], coordinates[], [minX, minY, maxX, maxY]]
         const mm = a[2]; if (mm && mm.length === 4) { const b = bboxOf([[mm[0], mm[1]], [mm[2], mm[1]], [mm[0], mm[3]], [mm[2], mm[3]]].map(([x, y]) => apply(st.ctm, x, y))); pathBox = pathBox ? [Math.min(pathBox[0], b[0]), Math.min(pathBox[1], b[1]), Math.max(pathBox[2], b[2]), Math.max(pathBox[3], b[3])] : b; }
         if (Array.isArray(a[0]) && a[0].some((o) => o === O.curveTo || o === O.curveTo2 || o === O.curveTo3)) pathCurve = true;
         break;
@@ -99,7 +99,7 @@ async function analyze(page, bars) {
   return { textOps, images, curves, groupImages };
 }
 
-// ---------------------------------------------------------------- Umschreiben eines Content Streams
+// ---------------------------------------------------------------- Rewriting a content stream
 function codesOf(strTok, bpc) { const out = []; for (let k = 0; k + bpc <= strTok.v.length; k += bpc) { let c = 0; for (let j = 0; j < bpc; j++) c = c * 256 + strTok.v[k + j]; out.push({ code: c, bytes: strTok.v.subarray(k, k + bpc) }); } return out; }
 
 function rewriteShow(stmt, t) {
@@ -108,11 +108,11 @@ function rewriteShow(stmt, t) {
   const glyphs = t.items.filter((x) => x.g);
   const strs = raw.filter((x) => x.t === 'str');
   const total = strs.reduce((s, x) => s + x.v.length, 0);
-  if (!glyphs.length || total % glyphs.length) throw new Error('Zeichenzahl passt nicht');
+  if (!glyphs.length || total % glyphs.length) throw new Error('Character count does not match');
   const bpc = total / glyphs.length;
-  if (bpc !== 1 && bpc !== 2) throw new Error('Zeichencodes mit wechselnder Länge');
-  if (t.vertical) throw new Error('Vertikale Schrift');
-  if (!t.size) throw new Error('Schriftgröße 0');
+  if (bpc !== 1 && bpc !== 2) throw new Error('Character codes of varying length');
+  if (t.vertical) throw new Error('Vertical writing');
+  if (!t.size) throw new Error('Font size 0');
   const parts = []; let cur = [], num = 0, gi = 0;
   const flushStr = () => { if (cur.length) { parts.push(hex(Uint8Array.from(cur))); cur = []; } };
   const flushNum = () => { if (num !== 0) { parts.push(fmt(num)); num = 0; } };
@@ -121,7 +121,7 @@ function rewriteShow(stmt, t) {
     if (r.t !== 'str') continue;
     for (const c of codesOf(r, bpc)) {
       const g = glyphs[gi++];
-      if (!g || g.code !== c.code) throw new Error('Zeichen stimmen nicht überein');
+      if (!g || g.code !== c.code) throw new Error('Characters do not match');
       if (g.removed) { flushStr(); num += -(g.w * t.fm0 * 1000 + ((t.Tc + (bpc === 1 && c.code === 32 ? t.Tw : 0)) * 1000) / t.size); }
       else { flushNum(); cur.push(...c.bytes); }
     }
@@ -133,16 +133,16 @@ function rewriteShow(stmt, t) {
   return arr;
 }
 
-const KIND = { Tj: 'Tj', TJ: 'Tj', "'": "'", '"': '"' }; // pdf.js meldet Tj und TJ beide als showText
+const KIND = { Tj: 'Tj', TJ: 'Tj', "'": "'", '"': '"' }; // pdf.js reports both Tj and TJ as showText
 
-/** Geht den Inhalt durch (und Formulare darin); schreibt Textanweisungen mit gelöschten Zeichen um. */
+/** Walks the content (and forms inside it); rewrites text instructions with the characters deleted. */
 function processStream(bytes, resources, ctx, depth = 0) {
   if (depth > 8) throw new Error('Formulare zu tief verschachtelt');
   const stmts = parseContent(bytes), chunks = []; let pos = 0, changed = false;
   for (const s of stmts) {
     if (KIND[s.op]) {
       const t = ctx.textOps[ctx.k++];
-      if (!t || t.kind !== KIND[s.op]) throw new Error(`Textanweisungen stimmen nicht mit der Anzeige überein (Nr. ${ctx.k}, Datei: ${s.op}, pdf.js: ${t ? t.kind : 'keine'})`);
+      if (!t || t.kind !== KIND[s.op]) throw new Error(`Text instructions do not match the display (no. ${ctx.k}, file: ${s.op}, pdf.js: ${t ? t.kind : 'none'})`);
       if (t.items.some((x) => x.removed || (x.g && x.g.removed))) {
         const rep = rewriteShow(s, t);
         chunks.push(bytes.subarray(pos, s.start), Buffer.from(rep, 'latin1')); pos = s.end; changed = true; ctx.removedGlyphs += t.items.filter((x) => x.g && x.g.removed).length;
@@ -154,7 +154,7 @@ function processStream(bytes, resources, ctx, depth = 0) {
         const fres = stream.dict.lookupMaybe(PDFName.of('Resources'), PDFDict) || resources;
         const before = ctx.removedGlyphs;
         const nb = processStream(decodePDFRawStream(stream).decode(), fres, ctx, depth + 1);
-        if (nb.changed || ctx.removedGlyphs !== before) throw new Error('Geschwärzter Text liegt in einem Formular-Objekt');
+        if (nb.changed || ctx.removedGlyphs !== before) throw new Error('Redacted text lies in a form object');
       }
     }
   }
@@ -163,7 +163,7 @@ function processStream(bytes, resources, ctx, depth = 0) {
   return { bytes: Buffer.concat(chunks.map((c) => Buffer.from(c))), changed: true };
 }
 
-// ---------------------------------------------------------------- Seitenebene
+// ---------------------------------------------------------------- Page level
 function contentStreams(doc, node) {
   const c = node.get(PDFName.of('Contents')); const base = doc.context.lookup(c), refs = [];
   if (base instanceof PDFArray) base.asArray().forEach((r) => refs.push(r)); else if (c) refs.push(c);
@@ -175,7 +175,7 @@ function cleanPageExtras(doc, node) {
 }
 
 const strOf = (v) => { try { return v.decodeText(); } catch { try { return v.asString(); } catch { return ''; } } };
-/** Leert ein Formularfeld (Wert, Standardwert, Aussehen) samt übergeordneter Felder. Gibt die entfernten Texte zurück. */
+/** Clears a form field (value, default value, appearance) including parent fields. Returns the removed texts. */
 function wipeWidget(doc, d, wiped) {
   for (let cur = d, depth = 0; cur instanceof PDFDict && depth < 8; depth++) {
     for (const k of ['V', 'DV']) { const v = doc.context.lookup(cur.get(PDFName.of(k))); if (v && v.decodeText) { const t = strOf(v); if (t) wiped.push(t); } cur.delete(PDFName.of(k)); }
@@ -184,7 +184,7 @@ function wipeWidget(doc, d, wiped) {
   }
 }
 
-/** Entfernt Anmerkungen (Links, Kommentare), die unter einem Balken liegen; Formularfelder werden geleert und bleiben bestehen. */
+/** Removes annotations (links, comments) lying under a bar; form fields are cleared and remain. */
 function stripAnnots(doc, node, barsUser, wiped) {
   const arr = doc.context.lookup(node.get(PDFName.of('Annots')));
   if (!(arr instanceof PDFArray)) return 0;
@@ -208,11 +208,11 @@ function stripAnnots(doc, node, barsUser, wiped) {
 async function vectorPage({ doc, jsPage, pageIdx, barsUser, wiped }) {
   const page = doc.getPage(pageIdx), node = page.node;
   const an = await analyze(jsPage, barsUser);
-  if (an.images.some((b) => barsUser.some((r) => overlaps(b, r)))) throw new Error('Bild unter dem Balken');
-  if (an.curves.some((b) => barsUser.some((r) => overlaps(b, r)))) throw new Error('Grafik unter dem Balken');
+  if (an.images.some((b) => barsUser.some((r) => overlaps(b, r)))) throw new Error('Image under the bar');
+  if (an.curves.some((b) => barsUser.some((r) => overlaps(b, r)))) throw new Error('Graphic under the bar');
   for (const t of an.textOps) for (const it of t.items) if (it.g) it.g.removed = it.removed = hitsBars(it.box, barsUser);
   const cs = contentStreams(doc, node);
-  if (!cs.length) throw new Error('Seite ohne Inhalt');
+  if (!cs.length) throw new Error('Page without content');
   const joined = Buffer.concat(cs.flatMap(({ stream }, i) => [Buffer.from(i ? '\n' : ''), Buffer.from(decodePDFRawStream(stream).decode())]));
   const ctx = { doc, textOps: an.textOps, k: 0, removedGlyphs: 0 };
   const res = node.Resources();
@@ -228,7 +228,7 @@ async function vectorPage({ doc, jsPage, pageIdx, barsUser, wiped }) {
   return { removedGlyphs: ctx.removedGlyphs };
 }
 
-/** Notlösung: Seite als Bild (Balken eingebrannt) mit exaktem unsichtbarem Textlayer, im selben Seitenobjekt. */
+/** Fallback: page as an image (bars burned in) with an exact invisible text layer, in the same page object. */
 async function flattenPage({ doc, pdfium, pageIdx, barsPx, barsUser, scale, fontBox, wiped }) {
   const src = pdfium.doc.getPage(pageIdx);
   const img = await renderPage(src, scale);
@@ -248,7 +248,7 @@ async function flattenPage({ doc, pdfium, pageIdx, barsPx, barsUser, scale, font
   if (pc) { if (!fontBox.font) { doc.registerFontkit(fontkit); fontBox.font = await doc.embedFont(fs.readFileSync(FONT_FILE), { subset: true }); } addTextLayer(doc, fresh, fontBox.font, pc, barsPx, scale, img.ptH); }
 }
 
-/** Löscht alle Objekte, auf die nichts mehr verweist (pdf-lib schreibt sonst auch verwaiste Objekte, z. B. alte Seiteninhalte, mit). */
+/** Deletes all objects nothing refers to any more (pdf-lib otherwise also writes orphaned objects, e.g. old page contents). */
 function collectGarbage(doc) {
   const ctx = doc.context, seen = new Set(), stack = [];
   const push = (v) => { if (v instanceof PDFRef) { const k = v.toString(); if (!seen.has(k)) { seen.add(k); stack.push(v); } } else if (v) visit(v); };
@@ -265,9 +265,9 @@ function collectGarbage(doc) {
 }
 
 /**
- * plan: Map(Seitenindex -> Balken in Pixeln bei `scale`, oben links). pdfium: geöffnetes Original (openPdf).
- * force: Set von Seiten, die direkt als Bild neu gebaut werden sollen.
- * Gibt { bytes, modes: Map(Seite -> 'vektor' | 'bild'), reasons: Map(Seite -> Grund) } zurück.
+ * plan: Map(page index -> bars in pixels at `scale`, top left). pdfium: opened original (openPdf).
+ * force: Set of pages that should be rebuilt directly as an image.
+ * Returns { bytes, modes: Map(page -> 'vector' | 'image'), reasons: Map(page -> reason) }.
  */
 export async function applyRedactions({ bytes, pdfium, plan, scale, force = new Set() }) {
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
@@ -281,21 +281,21 @@ export async function applyRedactions({ bytes, pdfium, plan, scale, force = new 
       });
       let done = false;
       if (!force.has(i)) {
-        try { await vectorPage({ doc, jsPage, pageIdx: i, barsUser, wiped }); modes.set(i, 'vektor'); done = true; }
+        try { await vectorPage({ doc, jsPage, pageIdx: i, barsUser, wiped }); modes.set(i, 'vector'); done = true; }
         catch (e) { reasons.set(i, String(e.message || e)); }
-      } else reasons.set(i, 'Prüfung der Vektor-Variante fehlgeschlagen');
-      if (!done) { await flattenPage({ doc, pdfium, pageIdx: i, barsPx, barsUser, scale, fontBox, wiped }); modes.set(i, 'bild'); }
+      } else reasons.set(i, 'Check of the vector variant failed');
+      if (!done) { await flattenPage({ doc, pdfium, pageIdx: i, barsPx, barsUser, scale, fontBox, wiped }); modes.set(i, 'image'); }
     }
   } finally { await js.destroy(); }
   const dropped = collectGarbage(doc);
   return { bytes: await doc.save({ useObjectStreams: true }), modes, reasons, wiped, dropped };
 }
 
-/** Prüft die Vektor-Seiten: kein Zeichen mit Mittelpunkt in einem Balken darf mehr lesbar sein. Gibt fehlerhafte Seiten zurück. */
+/** Checks the vector pages: no character whose center lies in a bar may remain readable. Returns faulty pages. */
 export function checkVectorPages(pdfiumOut, plan, modes, scale) {
   const bad = new Set();
   for (const [i, bars] of plan) {
-    if (modes.get(i) !== 'vektor') continue;
+    if (modes.get(i) !== 'vector') continue;
     let pc; try { pc = pageChars(pdfiumOut.lib, pdfiumOut.doc.getPage(i), scale); } catch { continue; }
     for (const c of pc.chars) {
       if (!c.rect || !c.ch.trim()) continue;

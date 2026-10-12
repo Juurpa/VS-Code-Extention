@@ -1,6 +1,6 @@
-// Eingebaute Texterkennung (OCR): Tesseract als WebAssembly, alles lokal, keine Netzverbindung.
-// Eine Seite wird gerendert, aufbereitet (Schatten, Rauschen), erkannt und der Text als unsichtbare Ebene
-// exakt hinter die Bildwörter gelegt. Das Bild selbst bleibt unverändert.
+// Built-in text recognition (OCR): Tesseract as WebAssembly, everything local, no network connection.
+// A page is rendered, preprocessed (shadows, noise), recognized, and the text is placed as an invisible layer
+// exactly behind the words in the image. The image itself stays unchanged.
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
@@ -14,12 +14,12 @@ const require = createRequire(import.meta.url);
 export const DATA_DIR = fileURLToPath(new URL('../ocr-data/', import.meta.url));
 export const LANGS = { deu: 'Deutsch', eng: 'Englisch' };
 
-// ------------------------------------------------------------------ Bild aufbereiten
-/** RGBA -> Graustufen mit gleichmäßigem Hintergrund (entfernt Schatten/Verlauf), leichtem Entrauschen und Kontrast. */
+// ------------------------------------------------------------------ Preprocess image
+/** RGBA -> grayscale with an even background (removes shadows/gradients), light denoising and contrast. */
 export function enhance(rgba, W, H) {
   const g = new Uint8Array(W * H);
   for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = (rgba[j] * 77 + rgba[j + 1] * 150 + rgba[j + 2] * 29) >> 8;
-  // Hintergrund schätzen: verkleinern, dunkle Schrift mit „Maximum“ entfernen, glätten
+  // estimate background: downscale, remove dark text with a "maximum" filter, smooth
   const f = Math.max(2, Math.round(Math.min(W, H) / 220)), w = Math.ceil(W / f), h = Math.ceil(H / f);
   let s = new Float32Array(w * h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -41,7 +41,7 @@ export function enhance(rgba, W, H) {
   };
   const rad = Math.max(2, Math.round(30 / f));
   s = blur(maxf(s, rad), Math.max(1, rad >> 1));
-  // Normalisieren: Pixel / Hintergrund (bilinear hochskaliert)
+  // normalize: pixel / background (bilinearly upscaled)
   const out = new Uint8Array(W * H);
   const hist = new Uint32Array(256);
   for (let y = 0; y < H; y++) {
@@ -53,7 +53,7 @@ export function enhance(rgba, W, H) {
       out[y * W + x] = v; hist[v]++;
     }
   }
-  // leichtes Entrauschen (3x3-Mittel nur wenn das Bild merklich rauscht), dann Kontrast strecken
+  // light denoising (3x3 mean only if the image is visibly noisy), then stretch contrast
   let noisy = 0; for (let i = 0; i < 2000; i++) { const p = ((i * 7919) % (W * H - W - 2)) + 1; if (Math.abs(out[p] - out[p + 1]) > 14 && out[p] > 150 && out[p + 1] > 150) noisy++; }
   let res = out;
   if (noisy > 60) {
@@ -67,7 +67,7 @@ export function enhance(rgba, W, H) {
   return removeRules(res, W, H);
 }
 
-/** Entfernt lange dünne Linien (Tabellenränder, Formularfelder), die die Zeilenerkennung stören. */
+/** Removes long thin lines (table borders, form fields) that disturb line detection. */
 function removeRules(g, W, H) {
   const out = g.slice(), T = 140, light = 170, d = 7;
   const minH = Math.round(W / 24), minV = Math.round(H / 24);
@@ -94,7 +94,7 @@ function removeRules(g, W, H) {
 
 function grayToRgba(gray, W, H) { const o = new Uint8Array(W * H * 4); for (let i = 0; i < gray.length; i++) { o[i * 4] = o[i * 4 + 1] = o[i * 4 + 2] = gray[i]; o[i * 4 + 3] = 255; } return { rgba: o, width: W, height: H }; }
 
-/** Dreht Graustufen um 90°-Schritte (im Uhrzeigersinn). */
+/** Rotates grayscale by 90° steps (clockwise). */
 function rotateGray(g, W, H, deg) {
   if (!deg) return { g, W, H };
   if (deg === 180) { const o = new Uint8Array(g.length); for (let i = 0; i < g.length; i++) o[g.length - 1 - i] = g[i]; return { g: o, W, H }; }
@@ -103,8 +103,8 @@ function rotateGray(g, W, H, deg) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) o[(W - 1 - x) * H + y] = g[y * W + x]; // 270
   return { g: o, W: H, H: W };
 }
-/** Punkt aus gedrehtem Bild zurück ins Ausgangsbild. */
-function unrotatePt(x, y, W, H, deg) { // W,H = Maße des Ausgangsbilds
+/** Maps a point from the rotated image back to the original image. */
+function unrotatePt(x, y, W, H, deg) { // W,H = size of the original image
   if (deg === 90) return [y, H - x]; if (deg === 180) return [W - x, H - y]; if (deg === 270) return [W - y, x]; return [x, y];
 }
 
@@ -120,7 +120,7 @@ export class Engine {
     this.workers = await Promise.all(Array.from({ length: this.n }, () => T.createWorker(this.langs, 1, { langPath: DATA_DIR, gzip: true, cacheMethod: 'none' })));
     return this;
   }
-  /** psm: '3' = ganze Seite automatisch, '11' = verstreuter Text (Tabellen, Formulare). */
+  /** psm: '3' = whole page automatic, '11' = sparse text (tables, forms). */
   async recognize(png, i = 0, psm = '3') {
     const w = this.workers[i % this.workers.length];
     if (w.__psm !== psm) { await w.setParameters({ tessedit_pageseg_mode: psm }); w.__psm = psm; }
@@ -138,9 +138,9 @@ function linesOf(data) {
 
 const wordCount = (rec) => rec.lines.reduce((a, l) => a + l.words.length, 0);
 const quality = (rec) => rec.lines.reduce((a, l) => a + l.words.reduce((b, w) => b + (w.conf >= 60 ? w.text.length : 0), 0), 0);
-// ------------------------------------------------------------------ Seite erkennen
+// ------------------------------------------------------------------ Recognize page
 const half = (g, W, H) => { const w = W >> 1, h = H >> 1, o = new Uint8Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = 2 * y * W + 2 * x; o[y * w + x] = (g[i] + g[i + 1] + g[i + W] + g[i + W + 1]) >> 2; } return { g: o, W: w, H: h }; };
-/** Liegt der Text waagerecht (0°/180°) oder senkrecht (90°/270°)? Zeilen erzeugen im Zeilenprofil starke Schwankungen. */
+/** Is the text horizontal (0°/180°) or vertical (90°/270°)? Text lines cause strong swings in the line profile. */
 function axisOf(g, W, H) {
   const f = 4, w = W >> 2, h = H >> 2, rows = new Float64Array(h), cols = new Float64Array(w);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let d = 0; for (let k = 0; k < f; k++) for (let l = 0; l < f; l++) if (g[(y * f + k) * W + x * f + l] < 128) d++; rows[y] += d; cols[x] += d; }
@@ -151,7 +151,7 @@ const score = (d) => { let sc = 0, n = 0, c = 0; for (const l of linesOf(d)) for
 
 async function recognizePage(engine, rgba, W, H, wi, fast = false) {
   const gray = enhance(rgba, W, H);
-  // Ausrichtung bestimmen: erst Achse (waagerecht/senkrecht), dann zwischen den zwei Richtungen auf halber Auflösung entscheiden
+  // determine orientation: first the axis (horizontal/vertical), then decide between the two directions at half resolution
   const cand = axisOf(gray, W, H), tried = [];
   const probe = async (deg) => { const r = rotateGray(gray, W, H, deg), h2 = half(r.g, r.W, r.H); const d = await engine.recognize(encodePng(grayToRgba(h2.g, h2.W, h2.H)), wi, '3'); const sc = score(d); tried.push([deg, Math.round(sc.sc)]); return sc; };
   let deg = cand[0], first = await probe(cand[0]);
@@ -160,12 +160,12 @@ async function recognizePage(engine, rgba, W, H, wi, fast = false) {
   const data = await engine.recognize(encodePng(grayToRgba(r.g, r.W, r.H)), wi, '3');
   const best = { deg, data, conf: data.confidence || 0 };
   const rotated = tried;
-  // Zweiter Durchgang für Tabellen und Formulare: Wörter, die der erste übersehen hat, werden ergänzt
+  // second pass for tables and forms: words the first pass missed are added
   let sparse = null;
   if (!fast) try {
     const r = rotateGray(gray, W, H, best.deg);
     sparse = await engine.recognize(encodePng(grayToRgba(r.g, r.W, r.H)), wi, '11');
-  } catch (e) { /* Ergänzung ist optional */ }
+  } catch (e) { /* supplement is optional */ }
 
   const conv = (data) => {
     const lines = [];
@@ -192,7 +192,7 @@ async function recognizePage(engine, rgba, W, H, wi, fast = false) {
       const words = l.words.filter((w) => !covered(w));
       if (!words.length) continue;
       const cy = words.reduce((a, w) => a + (w.y0 + w.y1) / 2, 0) / words.length, x0 = words[0].x0, x1 = words[words.length - 1].x1;
-      // hinter die letzte Zeile einordnen, die darüber in derselben Spalte steht
+      // insert after the last line above it in the same column
       let at = lines.length;
       for (let i = lines.length - 1; i >= 0; i--) { const L = lines[i].words, ly = (L[0].y0 + L[0].y1) / 2, lx0 = L[0].x0, lx1 = L[L.length - 1].x1; if (ly <= cy && Math.min(x1, lx1) > Math.max(x0, lx0)) { at = i + 1; break; } }
       lines.splice(at, 0, { words, ang: l.ang, extra: true });
@@ -201,11 +201,11 @@ async function recognizePage(engine, rgba, W, H, wi, fast = false) {
   return { lines, conf: best.conf, rotatedBy: best.deg, tried: rotated, W, H };
 }
 
-// ------------------------------------------------------------------ Textebene schreiben
+// ------------------------------------------------------------------ Write text layer
 function toUser(R, Wu, Hu, X, Y) { return R === 0 ? [X, Hu - Y] : R === 90 ? [Y, X] : R === 180 ? [Wu - X, Y] : [Wu - Y, Hu - X]; }
 
-/** Schreibt die erkannten Wörter als unsichtbaren Text. Wortkästen liegen im Rahmen des aufrecht gedrehten Bildes
- *  (res.rotatedBy); jeder Punkt wird zurück ins Seitenbild und dann in Seitenkoordinaten (inkl. /Rotate) umgerechnet. */
+/** Writes the recognized words as invisible text. Word boxes are in the frame of the upright-rotated image
+ *  (res.rotatedBy); each point is mapped back to the page image and then to page coordinates (incl. /Rotate). */
 function writeLayer(out, page, font, res, pxPerPt) {
   const set = new Set(font.getCharacterSet());
   const box = page.getCropBox(); const Wu = box.width, Hu = box.height, ox = box.x, oy = box.y;
@@ -215,11 +215,11 @@ function writeLayer(out, page, font, res, pxPerPt) {
   const ops = [beginText(), setTextRenderingMode(TextRenderingMode.Invisible)];
   let written = 0;
   for (const line of res.lines) {
-    // Schriftgröße aus der Zeilenhöhe (Oberlänge bis Unterlänge ≈ 1,12 em), Ausreißer über Median
+    // font size from the line height (ascender to descender ≈ 1.12 em), outliers handled via median
     const hs = line.words.map((w) => w.y1 - w.y0).sort((a, b) => a - b);
     const lineH = Math.max(hs[hs.length >> 1], hs[hs.length - 1] * 0.8);
     const size = Math.max(2, lineH / pxPerPt / 1.12);
-    // gemeinsame Grundlinie je Zeile (Median): so bleibt die Textextraktion auch bei schief eingescannten Seiten sauber
+    // common baseline per line (median): keeps text extraction clean even on skewed scans
     const bases = line.words.map((w) => w.y1 - (/[gjpqy,;()Q]/.test(w.text) ? 0.21 * size * pxPerPt : 0)).sort((a, b) => a - b);
     const lineBase = bases[bases.length >> 1];
     line.words.forEach((w, idx) => {
@@ -241,8 +241,8 @@ function writeLayer(out, page, font, res, pxPerPt) {
   return written;
 }
 
-// ------------------------------------------------------------------ Öffentliche Funktionen
-/** Welche Seiten haben keinen Text (vermutlich Scans)? Gibt Seitenzahl und Textzeichen je Seite zurück. */
+// ------------------------------------------------------------------ Public functions
+/** Which pages have no text (probably scans)? Returns page number and text character count per page. */
 export async function detectScanned(bytes) {
   const o = await openPdf(bytes);
   try {
@@ -257,7 +257,7 @@ export async function detectScanned(bytes) {
   } finally { o.close(); }
 }
 
-/** Texterkennung für Seiten. opt: { pages:[1-basiert]|null (=alle ohne Text), langs, dpi, force, workers, onProgress } */
+/** Text recognition for pages. opt: { pages:[1-based]|null (=all without text), langs, dpi, force, workers, onProgress } */
 export async function ocrPdf(bytes, opt = {}) {
   const langs = opt.langs && opt.langs.length ? opt.langs : ['deu', 'eng'];
   const dpi = Math.min(400, Math.max(150, opt.dpi || (opt.fast ? 250 : 300)));
@@ -265,7 +265,7 @@ export async function ocrPdf(bytes, opt = {}) {
   let todo = opt.pages && opt.pages.length ? opt.pages.filter((p) => p >= 1 && p <= status.length) : status.filter((s) => s.scanned).map((s) => s.page);
   const skipped = [];
   if (!opt.force) { const keep = []; for (const p of todo) (status[p - 1].scanned ? keep : skipped).push(p); todo = keep; }
-  if (!todo.length) return { bytes: null, pages: [], skipped, message: 'Keine Seite braucht Texterkennung.' };
+  if (!todo.length) return { bytes: null, pages: [], skipped, message: 'No page needs text recognition.' };
 
   const workers = Math.max(1, Math.min(opt.workers || Math.max(1, Math.min(3, os.cpus().length - 1)), todo.length));
   const engine = await new Engine(langs, workers).start();
@@ -275,17 +275,17 @@ export async function ocrPdf(bytes, opt = {}) {
   const font = await doc.embedFont(fs.readFileSync(FONT_FILE), { subset: true });
   const results = []; let done = 0;
   try {
-    // Seiten nacheinander rendern (Speicher), erkennen parallel auf den Arbeitern
+    // render pages one after another (memory), recognize in parallel on the workers
     const queue = [...todo]; const pending = [];
     const runOne = async (wi) => {
       try {
       while (queue.length) {
         const p = queue.shift(), page = o.doc.getPage(p - 1);
         let r = await renderPage(page, dpi / 72);
-        if (opt.signal && opt.signal.aborted) throw new Error('Abgebrochen.');
+        if (opt.signal && opt.signal.aborted) throw new Error('Cancelled.');
         let rec = await recognizePage(engine, r.rgba, r.width, r.height, wi, !!opt.fast);
         let pxPerPt = r.width / r.ptW;
-        // Schwache Erkennung oft bei kleiner Schrift: einmal mit höherer Auflösung wiederholen und das bessere Ergebnis nehmen
+        // weak recognition often occurs with small print: retry once at a higher resolution and keep the better result
         if ((rec.conf < 72 || wordCount(rec) < 4) && dpi < 400) {
           const r2 = await renderPage(page, Math.min(400, Math.round(dpi * 1.4)) / 72);
           const rec2 = await recognizePage(engine, r2.rgba, r2.width, r2.height, wi, !!opt.fast);
@@ -300,7 +300,7 @@ export async function ocrPdf(bytes, opt = {}) {
     if (opt.signal) opt.signal.addEventListener('abort', () => { queue.length = 0; engine.stop(); }, { once: true });
     for (let i = 0; i < workers; i++) pending.push(runOne(i));
     const settled = await Promise.allSettled(pending);
-    if (opt.signal && opt.signal.aborted) throw new Error('Abgebrochen.');
+    if (opt.signal && opt.signal.aborted) throw new Error('Cancelled.');
     const bad = settled.find((x) => x.status === 'rejected'); if (bad) throw bad.reason;
   } finally { o.close(); await engine.stop(); }
   results.sort((a, b) => a.page - b.page);

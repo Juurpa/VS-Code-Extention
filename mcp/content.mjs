@@ -1,12 +1,12 @@
-// Minimaler Parser für PDF-Seiteninhalt (Content Streams): zerlegt in Anweisungen und merkt sich die Byte-Bereiche,
-// damit unveränderte Teile Byte für Byte erhalten bleiben.
+// Minimal parser for PDF page content (content streams): splits into instructions and remembers the byte ranges,
+// so unchanged parts are preserved byte for byte.
 const WS = new Set([0, 9, 10, 12, 13, 32]);
 const DELIM = new Set([0x28, 0x29, 0x3c, 0x3e, 0x5b, 0x5d, 0x7b, 0x7d, 0x2f, 0x25]);
 const isWs = (c) => WS.has(c);
 const isReg = (c) => !WS.has(c) && !DELIM.has(c);
 const hexv = (c) => (c >= 48 && c <= 57 ? c - 48 : c >= 65 && c <= 70 ? c - 55 : c >= 97 && c <= 102 ? c - 87 : -1);
 
-/** Zerlegt `b` (Uint8Array) in Anweisungen: { op, operands:[{t,v,s,e}], start, end } */
+/** Splits `b` (Uint8Array) into instructions: { op, operands:[{t,v,s,e}], start, end } */
 export function parseContent(b) {
   const n = b.length, out = [];
   let i = 0, operands = [], stStart = -1;
@@ -18,7 +18,7 @@ export function parseContent(b) {
       break;
     }
   }
-  function readString() { // an '(' ; liefert Bytes
+  function readString() { // at '(' ; returns bytes
     const bytes = []; let depth = 1; i++;
     while (i < n && depth > 0) {
       const c = b[i++];
@@ -37,7 +37,7 @@ export function parseContent(b) {
     if (hi >= 0) bytes.push(hi * 16); i++;
     return Uint8Array.from(bytes);
   }
-  function readToken() { // liefert Token oder null bei Ende / Klammer-Ende
+  function readToken() { // returns a token or null at end / closing bracket
     skipWs(); if (i >= n) return null;
     const s = i, c = b[i];
     if (c === 0x28) { const v = readString(); return { t: 'str', v, s, e: i }; }
@@ -59,7 +59,7 @@ export function parseContent(b) {
     if (stStart < 0) stStart = tok.s;
     if (tok.t !== 'op') { operands.push(tok); continue; }
     let end = tok.e;
-    if (tok.v === 'BI') { // Inline-Bild: Daten bis EI überspringen
+    if (tok.v === 'BI') { // inline image: skip data up to EI
       for (;;) { const t = readToken(); if (!t || (t.t === 'op' && t.v === 'ID')) break; }
       if (i < n && isWs(b[i])) i++;
       let k = i, found = -1;
@@ -73,5 +73,5 @@ export function parseContent(b) {
   return out;
 }
 
-/** Bytes einer Zeichenkette -> Hex-Schreibweise */
+/** Bytes of a string -> hex notation */
 export const hex = (u8) => '<' + Buffer.from(u8).toString('hex') + '>';

@@ -1,4 +1,4 @@
-// Die Werkzeuge der KI-Schnittstelle: reine Funktionen auf Bytes, ohne MCP-Teil.
+// The tools of the AI interface: pure functions on bytes, without the MCP part.
 import zlib from 'node:zlib';
 import { PDFDocument, PDFRawStream, decodePDFRawStream, PDFDict, PDFArray, PDFString, PDFHexString, PDFName, PDFRef } from '../media/lib/pdf-lib.esm.min.js';
 import fontkit from '@pdf-lib/fontkit';
@@ -13,27 +13,27 @@ export { ops };
 
 export const KINDS = {
   iban: { re: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\b/g, label: 'IBAN' },
-  email: { re: /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, label: 'E-Mail-Adresse' },
-  telefon: { re: /(?:\+49|0049|\b0)[\s\d\/()-]{6,}\d/g, label: 'Telefonnummer (kann auch andere Zahlen treffen)' },
-  datum: { re: /\b\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})\b/g, label: 'Datum (z. B. Geburtsdatum)' },
-  plz_ort: { re: /\b\d{5}\s+[A-ZÄÖÜ][\wäöüß-]+/g, label: 'PLZ und Ort' },
-  url: { re: /https?:\/\/\S+|www\.\S+/g, label: 'Internetadresse' },
-  elfstellig: { re: /\b\d{11}\b/g, label: 'elfstellige Nummer (z. B. Steuer-ID)' },
-  kreditkarte: { re: /\b(?:\d[ -]?){13,19}\b/g, label: 'Kartennummer', ok: (s) => luhn(s.replace(/\D/g, '')) },
+  email: { re: /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, label: 'Email address' },
+  phone: { re: /(?:\+49|0049|\b0)[\s\d\/()-]{6,}\d/g, label: 'Phone number (may also match other numbers)' },
+  date: { re: /\b\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})\b/g, label: 'Date (e.g. date of birth)' },
+  postal_code_city: { re: /\b\d{5}\s+[A-ZÄÖÜ][\wäöüß-]+/g, label: 'Postal code and city' },
+  url: { re: /https?:\/\/\S+|www\.\S+/g, label: 'Web address' },
+  eleven_digit: { re: /\b\d{11}\b/g, label: '11-digit number (e.g. tax ID)' },
+  credit_card: { re: /\b(?:\d[ -]?){13,19}\b/g, label: 'Card number', ok: (s) => luhn(s.replace(/\D/g, '')) },
 };
 function luhn(d) { if (d.length < 13) return false; let s = 0, alt = false; for (let i = d.length - 1; i >= 0; i--) { let n = +d[i]; if (alt) { n *= 2; if (n > 9) n -= 9; } s += n; alt = !alt; } return s % 10 === 0; }
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** Fester Text -> Regex, der Groß/Kleinschreibung und beliebige Leerzeichen/Umbrüche zwischen Zeichen ignoriert. */
+/** Fixed text -> regex that ignores case and any whitespace/line breaks between characters. */
 export function termRegex(t) {
   const chars = [...String(t)].filter((c) => !/\s/.test(c));
-  if (!chars.length) throw new Error('Leerer Suchbegriff.');
+  if (!chars.length) throw new Error('Empty search term.');
   return new RegExp(chars.map(esc).join('\\s*'), 'gi');
 }
 
 function parsePages(spec, n) {
   if (!spec || spec === 'all') return Array.from({ length: n }, (_, i) => i);
-  if (Array.isArray(spec)) return spec.map((p) => { if (p < 1 || p > n) throw new Error(`Seite ${p} gibt es nicht (1–${n}).`); return p - 1; });
+  if (Array.isArray(spec)) return spec.map((p) => { if (p < 1 || p > n) throw new Error(`Page ${p} does not exist (1–${n}).`); return p - 1; });
   const set = new Set();
   for (const [a, b] of ops.parseRanges(String(spec), n)) for (let i = a; i <= b; i++) set.add(i);
   return [...set];
@@ -65,13 +65,13 @@ export async function readText(bytes, pagesSpec) {
 
 function buildMatchers({ terms = [], regex = [], kinds = [] }) {
   const m = [];
-  for (const t of terms) m.push({ kind: 'begriff', re: termRegex(t) });
+  for (const t of terms) m.push({ kind: 'term', re: termRegex(t) });
   for (const r of regex) m.push({ kind: 'regex', re: new RegExp(r, 'g') });
-  for (const k of kinds) { const d = KINDS[k]; if (!d) throw new Error(`Unbekannte Art „${k}“. Möglich: ${Object.keys(KINDS).join(', ')}`); m.push({ kind: k, re: new RegExp(d.re.source, d.re.flags), ok: d.ok }); }
+  for (const k of kinds) { const d = KINDS[k]; if (!d) throw new Error(`Unknown kind "${k}". Possible: ${Object.keys(KINDS).join(', ')}`); m.push({ kind: k, re: new RegExp(d.re.source, d.re.flags), ok: d.ok }); }
   return m;
 }
 
-/** Sucht Treffer (ohne etwas zu verändern). */
+/** Finds matches (without changing anything). */
 export async function find(bytes, spec) {
   const matchers = buildMatchers(spec), pdf = await openPdf(bytes), hits = [];
   try {
@@ -83,7 +83,7 @@ export async function find(bytes, spec) {
   return hits;
 }
 
-/** Echtes Schwärzen: Seiten mit Treffern werden neu als Bild aufgebaut (schwarze Balken eingebrannt, kein Text, keine Reste). */
+/** True redaction: pages with matches are rebuilt (characters deleted from the page code; if that is not safe, as an image with black bars burned in, no text, no leftovers). */
 export async function redact(bytes, spec) {
   const { boxes = [], scale = 2.5 } = spec, matchers = buildMatchers(spec);
   const pdf = await openPdf(bytes), plan = new Map(), found = [];
@@ -101,13 +101,13 @@ export async function redact(bytes, spec) {
       if (rects.length) plan.set(i, { text: rects, box: [] });
     }
     for (const b of boxes) {
-      const i = b.page - 1; if (i < 0 || i >= pdf.count) throw new Error(`Seite ${b.page} gibt es nicht.`);
+      const i = b.page - 1; if (i < 0 || i >= pdf.count) throw new Error(`Page ${b.page} does not exist.`);
       const sz = pdf.doc.getPage(i).getSize({ scale }), r = [b.x * sz.width, b.y * sz.height, (b.x + b.w) * sz.width, (b.y + b.h) * sz.height];
-      (plan.get(i) || plan.set(i, { text: [], box: [] }).get(i)).box.push(r); found.push({ page: b.page, kind: 'bereich', text: '(Bereich)' });
+      (plan.get(i) || plan.set(i, { text: [], box: [] }).get(i)).box.push(r); found.push({ page: b.page, kind: 'area', text: '(area)' });
     }
     if (spec.dry_run || !plan.size) return { bytes: null, found, pagesChanged: [...plan.keys()].map((i) => i + 1) };
 
-    // Balken je Seite (Pixel bei `scale`) und die dadurch entfernten Zeichenfolgen
+    // bars per page (pixels at `scale`) and the character sequences they remove
     const barsByPage = new Map(), removed = [];
     for (const [i, p] of plan) {
       const bars = [...p.text, ...p.box];
@@ -115,7 +115,7 @@ export async function redact(bytes, spec) {
       let pc = null; try { pc = pageChars(pdf.lib, pdf.doc.getPage(i), scale); } catch { /* ohne Text */ }
       if (pc) { let rm = ''; for (const c of pc.chars) { if (c.rect && bars.some((b) => overlaps(c.rect, b))) rm += c.ch; else if (c.gen && rm) rm += ' '; else if (rm) { removed.push(rm); rm = ''; } } if (rm) removed.push(rm); }
     }
-    // Struktur 1:1: Buchstaben aus dem Seitencode löschen; nur wenn das nicht sicher geht, Seite als Bild (Notlösung)
+    // keep structure 1:1: delete letters from the page code; only if that is not safe, rebuild the page as an image (fallback)
     let force = new Set(), res;
     for (let round = 0; round < 3; round++) {
       res = await applyRedactions({ bytes, pdfium: pdf, plan: barsByPage, scale, force });
@@ -124,13 +124,13 @@ export async function redact(bytes, spec) {
       if (!bad.size) break;
       bad.forEach((i) => force.add(i));
     }
-    const modes = [...res.modes].map(([i, m]) => ({ page: i + 1, mode: m === 'vektor' ? 'Buchstaben gelöscht, Seite unverändert' : 'als Bild neu aufgebaut', reason: m === 'bild' ? res.reasons.get(i) : undefined }));
+    const modes = [...res.modes].map(([i, m]) => ({ page: i + 1, mode: m === 'vector' ? 'letters deleted, page otherwise unchanged' : 'rebuilt as image', reason: m === 'image' ? res.reasons.get(i) : undefined }));
     return { bytes: res.bytes, found, pagesChanged: [...plan.keys()].map((i) => i + 1), removed: [...removed, ...res.wiped], modes };
   } finally { pdf.close(); }
 }
 
-/** Prüft die fertige Datei: Treffer im Text und in ALLEN Datenströmen (auch entpackt, auch UTF-16). */
-export async function verifyGone(bytes, needles, changedPages /* 1-basiert; sonst alle Seiten */, { loose = false } = {}) {
+/** Checks the finished file: matches in the text and in ALL data streams (also decompressed, also UTF-16). */
+export async function verifyGone(bytes, needles, changedPages /* 1-based; otherwise all pages */, { loose = false } = {}) {
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
   const norm = (s) => String(s).replace(/\s+/g, '').toLowerCase();
   const pagesText = await readText(bytes);
@@ -141,13 +141,13 @@ export async function verifyGone(bytes, needles, changedPages /* 1-basiert; sons
   for (const [, obj] of doc.context.enumerateIndirectObjects()) {
     if (obj instanceof PDFRawStream) {
       const raw = Buffer.from(obj.contents);
-      let dec = raw; try { dec = zlib.inflateSync(raw); } catch { /* nicht gepackt */ }
+      let dec = raw; try { dec = zlib.inflateSync(raw); } catch { /* not compressed */ }
       hay.push(dec.toString('latin1'), dec.toString('utf16le'), dec.toString('utf8'));
     }
   }
   const walkStrings = (obj, acc, seen = new Set()) => {
     if (!obj || seen.has(obj)) return; seen.add(obj);
-    if (obj instanceof PDFString || obj instanceof PDFHexString) { try { acc.push(obj.decodeText()); } catch { /* ignorieren */ } try { acc.push(obj.asString()); } catch { /* ignorieren */ } }
+    if (obj instanceof PDFString || obj instanceof PDFHexString) { try { acc.push(obj.decodeText()); } catch { /* ignore */ } try { acc.push(obj.asString()); } catch { /* ignore */ } }
     else if (obj instanceof PDFDict) obj.entries().forEach(([, v]) => walkStrings(v, acc, seen));
     else if (obj instanceof PDFArray) obj.asArray().forEach((v) => walkStrings(v, acc, seen));
   };
@@ -158,8 +158,8 @@ export async function verifyGone(bytes, needles, changedPages /* 1-basiert; sons
   const leaks = [];
   for (const n of needles) {
     const s = norm(n); if (s.length < 3) continue;
-    // Steht derselbe Text legal auf einer nicht geschwärzten Seite, kann die Rohdatenprüfung ihn nicht zuordnen.
-    // loose: Text, der nach dem Schwärzen noch lesbar irgendwo steht (z. B. dasselbe Wort an anderer Stelle), ist kein Fund.
+    // If the same text legitimately appears on a page that was not redacted, the raw-data check cannot attribute it.
+    // loose: text that is still readable somewhere after redaction (e.g. the same word elsewhere) is not a finding.
     if (loose && (changedText.includes(s) || otherText.includes(s))) continue;
     const elsewhere = otherText.includes(s);
     if ((!elsewhere && all.includes(s)) || changedText.includes(s)) leaks.push(n);
@@ -167,7 +167,7 @@ export async function verifyGone(bytes, needles, changedPages /* 1-basiert; sons
   return leaks;
 }
 
-/** Entfernt Zeichenketten in Dokument-Eigenschaften, Lesezeichen, Beschriftungen usw. und XMP-Metadaten, die geschwärzte Texte enthalten. */
+/** Removes strings in document properties, bookmarks, labels etc. and XMP metadata that contain redacted text. */
 export async function scrub(bytes, needles) {
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
   const norm = (s) => String(s).replace(/\s+/g, '').toLowerCase();
@@ -179,7 +179,7 @@ export async function scrub(bytes, needles) {
   const blank = PDFString.of('');
   const walk = (obj, where) => {
     if (!obj || seen.has(obj)) return; seen.add(obj);
-    const handle = (v, set, label) => { // v: Wert oder Verweis auf Zeichenkette
+    const handle = (v, set, label) => { // v: value or reference to a string
       const target = v instanceof PDFRef ? doc.context.lookup(v) : v;
       if (isStr(target)) { if (has(textOf(target))) { if (v instanceof PDFRef) doc.context.assign(v, blank); else set(); changes.push(label); } return true; }
       return false;
@@ -191,21 +191,21 @@ export async function scrub(bytes, needles) {
     if (obj instanceof PDFRawStream) {
       const sub = obj.dict.get(PDFName.of('Subtype')), type = obj.dict.get(PDFName.of('Type'));
       if (type === PDFName.of('Metadata') || sub === PDFName.of('XML')) {
-        let txt = ''; try { txt = Buffer.from(decodePDFRawStreamBytes(obj)).toString('utf8'); } catch { /* ignorieren */ }
-        if (has(txt)) { doc.catalog.delete(PDFName.of('Metadata')); changes.push('XMP-Metadaten'); }
+        let txt = ''; try { txt = Buffer.from(decodePDFRawStreamBytes(obj)).toString('utf8'); } catch { /* ignore */ }
+        if (has(txt)) { doc.catalog.delete(PDFName.of('Metadata')); changes.push('XMP metadata'); }
       }
-      walk(obj.dict, 'Objekt');
-    } else walk(obj, 'Objekt');
+      walk(obj.dict, 'object');
+    } else walk(obj, 'object');
   }
   return { bytes: changes.length ? await doc.save({ useObjectStreams: true }) : bytes, changes };
 }
 const decodePDFRawStreamBytes = (s) => decodePDFRawStream(s).decode();
 
-/** Schwärzen + Prüfen + (falls nötig) Eigenschaften säubern + erneut prüfen. Gemeinsamer Einstieg für Oberfläche und KI. */
+/** Redact + verify + (if needed) clean properties + verify again. Shared entry point for the UI and the AI. */
 export async function redactVerified(bytes, spec) {
   const r = await redact(bytes, spec);
   if (!r.bytes) return r;
-  const strict = [...(spec.terms || []), ...r.found.filter((f) => f.kind !== 'bereich').map((f) => f.text)];
+  const strict = [...(spec.terms || []), ...r.found.filter((f) => f.kind !== 'area').map((f) => f.text)];
   const check = async (b) => [...await verifyGone(b, strict, r.pagesChanged), ...await verifyGone(b, r.removed, r.pagesChanged, { loose: true })];
   let out = r.bytes, leaks = await check(out), scrubbed = [];
   if (leaks.length) {
