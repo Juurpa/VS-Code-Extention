@@ -20,7 +20,7 @@ Befehl „Werkbank: KI-Anbieter wählen“: Claude Code (Standard), nur kopieren
 
 ## Für Entwickler
 ```js
-const api = vscode.extensions.getExtension("it-biene.pdf-workbench").exports;
+const api = vscode.extensions.getExtension("juurpa.pdf-workbench").exports;
 api.registerProvider({ id: "mein", label: "Mein Anbieter", run: async (prompt, { signal }) => "Antwort" });
 ```
 

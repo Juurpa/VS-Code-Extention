@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 480" width="1700" height="480" role="img" aria-label="PDF Workbench">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 440" width="1700" height="440" role="img" aria-label="PDF Workbench">
   <title>PDF Workbench</title>
   <g transform="translate(40 40) scale(0.390625)">
     <rect width="1024" height="1024" rx="232" fill="#F7B500"/>
@@ -15,6 +15,5 @@
   <g font-family="Manrope, 'Segoe UI', Arial, sans-serif" fill="#14181C">
     <text x="480" y="250" font-size="136" font-weight="800" letter-spacing="-4">PDF Workbench</text>
     <text x="486" y="340" font-size="52" font-weight="800" fill="#129AA3">Read, redact and OCR PDFs with AI.</text>
-    <text x="486" y="410" font-size="40" font-weight="500" fill="#4B5560">by IT-Biene</text>
   </g>
 </svg>
