@@ -4,6 +4,16 @@ Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with t
 
 Werkbank turns VS Code into a workspace for documents. Everything is stored as ordinary files in your project folder, the AI you choose can read and operate the tools, and you stay in control: the AI prepares, you review, approve and sign.
 
+![Redaction demo: open, mark areas, apply, verified result](media/screenshots/demo.gif)
+
+| | |
+|---|---|
+| ![Reader with highlights and a comment](media/screenshots/reader.png) | ![Page tools: select pages, rotate, delete, extract; Tools menu](media/screenshots/page-tools.png) |
+| ![Marked areas before redaction](media/screenshots/redact-before.png) | ![After redaction: verified, text removed from the file](media/screenshots/redact-after.png) |
+| ![OCR: text of a scan becomes selectable](media/screenshots/ocr.png) | ![AI menu](media/screenshots/ai-tools.png) |
+
+*All demo documents are fictional.*
+
 ## Features
 
 ### Reading and annotating
@@ -29,7 +39,7 @@ Werkbank turns VS Code into a workspace for documents. Everything is stored as o
 - **Please note:** this is only a *simple* electronic signature. It is **not legally equivalent to the written form** and does not replace a qualified electronic signature where one is required.
 
 ### PDF tools for the AI (MCP)
-- The command **Werkbank: Set up PDF tools for AI (MCP)** writes a `.mcp.json` file. Claude Code (or another MCP client) can then read, search, OCR, redact, merge, split, extract, delete, reorder, rotate, crop, number and compress PDFs.
+- The command **Werkbank: Set up PDF tools for AI (MCP)** writes a `.mcp.json` file. Claude Code (or another MCP client) can then read, search, OCR, redact, merge, split, extract, delete, reorder, rotate, crop, number and compress PDFs, list and fill form fields, add watermarks and stamps, and read, change or remove metadata.
 - Original files are never overwritten: every tool writes a new file. Signing and sending always stay with you.
 - The MCP server runs with the Node runtime built into VS Code; you do not need to install Node.
 

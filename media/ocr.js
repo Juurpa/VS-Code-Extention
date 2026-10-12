@@ -41,7 +41,7 @@ export async function ocrDialog() {
     const pr = S.api.request({ type: 'ocr', b64: toB64(S.bytes), pages, langs: lang.value.split(','), fast: qual.value === 'fast', force: which.value !== 'scan' }, (p) => {
       bar.value = p.done / p.total; status.textContent = `Page ${p.page} done (${p.done} of ${p.total}) …`;
     });
-    running = pr; bar.max = '1'; status.textContent = `Recognizing first of ${n} pages …`;
+    running = pr; bar.max = '1'; status.textContent = n === 1 ? 'Recognizing text …' : `Recognizing first of ${n} pages …`;
     const r = await pr; running = null;
     if (!r.ok) { api.close(); toast(r.error === 'Cancelled.' ? 'Text recognition cancelled, nothing changed.' : 'Error: ' + r.error, 6000); return; }
     api.close();

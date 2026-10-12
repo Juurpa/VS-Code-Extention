@@ -41,6 +41,7 @@ async function applyRedactions() {
     if (!r.b64) throw new Error('No response received.');
     S.red = {};
     await commit(b64ToBytes(r.b64), ann);
+    S.api.renderToolOpts?.();
     const img = (r.modes || []).filter((m) => m.reason);
     toast(`Redacted on ${pages.length} ${pages.length === 1 ? 'page' : 'pages'} and verified: the text under the bars is removed, the rest of the page is unchanged.` + (img.length ? ` Page ${img.map((m) => m.page).join(', ')} had to be rebuilt as an image (${img[0].reason}); the text stays selectable there.` : ''), 9000);
   } finally { m.close(); }
@@ -77,7 +78,7 @@ export function signatureDialog(then) {
   };
   modal({ title: 'Signature', wide: true, body: el('div', { class: 'stack' }, el('p', { class: 'muted' }, 'Sign with the mouse or a pen – or load a photo of your signature (a light background becomes transparent). This is a simple image signature and is not legally equivalent to a handwritten (written-form) signature.'), c, file,
     el('div', { class: 'row', style: 'justify-content:flex-start' }, el('button', { class: 'pillBtn', onclick: () => g.clearRect(0, 0, c.width, c.height) }, 'Clear'), el('button', { class: 'pillBtn', onclick: () => file.click() }, 'Load image …'))),
-    actions: [{ label: 'Abbrechen' }, { label: 'Apply', primary: true, onClick: () => {
+    actions: [{ label: 'Cancel' }, { label: 'Apply', primary: true, onClick: () => {
       const t = trimCanvas(c); if (!t) { toast('Please sign first.'); return false; }
       S.sig = t.toDataURL('image/png'); S.api.post({ type: 'saveSig', png: S.sig }); S.api.renderToolOpts(); then && then();
     } }] });

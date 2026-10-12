@@ -16,6 +16,7 @@ const post = (m) => vscode.postMessage(m);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 fillIcons();
 document.title = cfg.name;
+S.name = cfg.name;
 
 // ------------------------------------------------------------ Loading
 let initResolve; const initP = new Promise((r) => (initResolve = r));
@@ -185,7 +186,7 @@ const mouseNav = (e) => {
 };
 for (const ev of ['mousedown', 'mouseup', 'auxclick']) window.addEventListener(ev, mouseNav, true);
 function setCur(n) {
-  if (n === S.cur && $('#pageInput').value == n) return;
+  if (n === S.cur && $('#pageInput').value == n && document.querySelector('.thumb.cur')) return;
   S.cur = n; $('#pageInput').value = n;
   $$('.thumb.cur').forEach((t) => t.classList.remove('cur'));
   const t = S.pages[n - 1]?.thumb;
@@ -395,7 +396,7 @@ async function askClaude(kind, extra = {}) {
 }
 function countDialog(kind, label) {
   const sel = el('select', {}, ...[5, 8, 12, 20].map((v) => el('option', { value: v, selected: v === 8 }, v)));
-  modal({ title: label, body: el('label', { class: 'muted' }, 'Count ', sel), actions: [{ label: 'Abbrechen' }, { label: 'Send to ' + S.ai.name, primary: true, onClick: () => askClaude(kind, { count: +sel.value }) }] });
+  modal({ title: label, body: el('label', { class: 'muted' }, 'Count ', sel), actions: [{ label: 'Cancel' }, { label: 'Send to ' + S.ai.name, primary: true, onClick: () => askClaude(kind, { count: +sel.value }) }] });
 }
 $('#tClaude').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();

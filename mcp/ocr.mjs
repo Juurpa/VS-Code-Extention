@@ -12,7 +12,7 @@ import { FONT_FILE } from './textlayer.mjs';
 
 const require = createRequire(import.meta.url);
 export const DATA_DIR = fileURLToPath(new URL('../ocr-data/', import.meta.url));
-export const LANGS = { deu: 'Deutsch', eng: 'Englisch' };
+export const LANGS = { deu: 'German', eng: 'English' };
 
 // ------------------------------------------------------------------ Preprocess image
 /** RGBA -> grayscale with an even background (removes shadows/gradients), light denoising and contrast. */

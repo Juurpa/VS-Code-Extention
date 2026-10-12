@@ -17,9 +17,9 @@ Other VS Code PDF extensions are mostly read-only viewers. Acrobat-class tools a
 
 ## Tier 1 – next releases (small effort, high value, fully local)
 
-1. **Form filling.** List form fields, fill them (by the AI or by hand), optionally flatten. Tools: `pdf_form_fields`, `pdf_fill_form`. Biggest everyday use case in offices and public authorities.
-2. **Watermark, stamp, header/footer.** Text or image on selected pages ("DRAFT", "CONFIDENTIAL", dates, Bates numbers).
-3. **Metadata viewer, editor and cleaner.** Show author, producer, hidden data; strip everything before sharing. Complements redaction.
+1. ✔ **Form filling** (AI tools; UI still to do). List form fields, fill them (by the AI or by hand), optionally flatten. Tools: `pdf_form_fields`, `pdf_fill_form`. Biggest everyday use case in offices and public authorities.
+2. ✔ **Watermark and stamp** (AI tool; UI and header/footer still to do). Text or image on selected pages ("DRAFT", "CONFIDENTIAL", dates, Bates numbers).
+3. ✔ **Metadata viewer, editor and cleaner** (AI tool; UI still to do). Show author, producer, hidden data; strip everything before sharing. Complements redaction.
 4. **MCP: write highlights and comments** (today the AI can only read them).
 5. **Table and structure extraction** to CSV / Markdown / JSON, with page references. Very common AI use case (invoices, reports).
 6. **Export pages as PNG/JPG, extract embedded images, create a PDF from images.**
