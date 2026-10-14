@@ -77,6 +77,16 @@ Every AI feature works with any provider (Claude Code, OpenAI-compatible, local 
 11. **Recipes (workflows).** Saved multi-step jobs the AI or the user can run, for example "prepare for sharing": OCR → redact → strip metadata → compress → verify. Batch mode for whole folders.
 12. **More MCP surface**: expose documents and comments as MCP resources, add MCP prompts for common tasks, and tools for everything above.
 
+## Other platforms (browser)
+
+The viewer in `media/` is plain web code and talks to its host only through messages; redaction (PDFium WebAssembly), OCR (Tesseract WebAssembly) and pdf-lib run in the browser. That makes a browser version realistic, fully local, without uploading documents.
+
+1. **Web app / PWA** (first): works offline in Chrome, Edge, Firefox, Safari and on phones. Files open through the browser file picker or the File System Access API. Needs a browser host that answers the same messages as `extension.js`.
+2. **Chrome / Edge extension** (thin wrapper around the web app): open PDFs from web pages, context-menu entry. Manifest V3, same package for Edge. Needs a Chrome Web Store developer account and a privacy policy.
+3. **VS Code for the Web** (vscode.dev, github.dev): only with a web build without Node parts; low priority once the web app exists.
+
+Work needed: replace Node-only modules in `mcp/ops.mjs` (`fs`, `zlib`) with browser-safe ones, bundle with esbuild, run redaction and OCR in Web Workers, write the browser host (open, save, redact, OCR, overwrite prompts). The AI part works there only through provider APIs or local models, not through MCP/Claude Code.
+
 ## Integration with Synaptik (remote control lives there)
 
 Synaptik is a separate project: it runs the always-on server and the remote access from the phone. PDF Workbench does not open any network port itself. It only has to be a good, safe tool provider for Synaptik through its local MCP server.
