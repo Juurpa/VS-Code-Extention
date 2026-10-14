@@ -110,3 +110,12 @@ Each item gets its own short design, build and test round; nothing is pushed wit
 5. **Open and edit HTML, Markdown and JSON** in the same workbench: rendered or live preview next to the source, formatting and validation (JSON). VS Code already edits these as text; the value added is one place with preview.
 6. **Real text editing on the PDF page** (hard: fonts and layout).
 7. **Workbench Image** as a separate extension: resize/compress (for example under a size limit), crop, strip EXIF, OCR.
+
+## Found in testing (14 Oct 2026)
+
+Small fixes first, before the bigger features above.
+
+- **Signature cannot be deleted** (placed one: only the eraser works and the eraser hint does not mention signatures; saved template: no delete at all; a click on a placed signature with the signature tool active places another one).
+- **Redaction bars cannot be moved or resized** after they are set (only click-to-remove today). Add drag to move and corner handles to resize.
+- **Tool results clutter the folder** (copies like `_ocr`, split parts). Put intermediate files into `_pdf-workbench/` and offer to clean up.
+- **Localization, European languages first.** Plan: `package.nls.<lang>.json` for command and setting titles, `vscode.l10n` for messages in the extension, a small dictionary file for the viewer (language from `vscode.env.language`, English fallback). First set: de, fr, es, it, nl, pl, pt. Texts need a native-speaker check before release.
