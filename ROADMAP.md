@@ -119,3 +119,6 @@ Small fixes first, before the bigger features above.
 - **Redaction bars cannot be moved or resized** after they are set (only click-to-remove today). Add drag to move and corner handles to resize.
 - **Tool results clutter the folder** (copies like `_ocr`, split parts). Put intermediate files into `_pdf-workbench/` and offer to clean up.
 - **Localization, European languages first.** Plan: `package.nls.<lang>.json` for command and setting titles, `vscode.l10n` for messages in the extension, a small dictionary file for the viewer (language from `vscode.env.language`, English fallback). First set: de, fr, es, it, nl, pl, pt. Texts need a native-speaker check before release.
+- **Insert page numbers: better dialog.** Style presets with examples ("1", "– 1 –", "Page 1 of 9", "1 / 9"), position as a clickable grid, live preview on a thumbnail of the real page, size and margin as sliders that update the preview, optional "skip first page" and "selected pages only". Same engine (`numberPages`) so the AI tool stays in sync.
+- **Icons and quick bar.** Redesign all icons as one consistent SVG set (preview page for approval first), give every tool an icon, and let users pin or unpin tools in the quick bar and reorder them.
+- **Small "×" on signatures and redaction bars** (also the `Delete` key).
