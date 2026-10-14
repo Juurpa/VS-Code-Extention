@@ -1,0 +1,20 @@
+{
+  "customEditor.displayName": "PDF Workbench",
+  "cmd.setupClaudeMd.title": "PDF Workbench : ajouter l’indication Claude Code dans CLAUDE.md",
+  "cmd.setupMcp.title": "PDF Workbench : configurer les outils PDF pour l’IA (MCP)",
+  "cmd.revealData.title": "PDF Workbench : afficher le dossier des textes et marquages",
+  "cmd.chooseAi.title": "PDF Workbench : choisir le fournisseur d’IA",
+  "cmd.setApiKey.title": "PDF Workbench : définir la clé API",
+  "cmd.showLicenses.title": "PDF Workbench : afficher les licences",
+  "cmd.reportProblem.title": "PDF Workbench : signaler un problème…",
+  "cmd.sendFeedback.title": "PDF Workbench : envoyer un retour…",
+  "config.title": "PDF Workbench",
+  "config.dataFolder.description": "Dossier du projet où sont stockés le texte, les marquages et les aides à l’étude de chaque PDF.",
+  "config.openClaudeAfterPrompt.description": "Ouvrir automatiquement Claude Code après la copie d’un prompt.",
+  "config.ai.provider.description": "IA chargée des tâches : claude-code, zwischenablage (presse-papiers uniquement), openai, ou l’ID d’un fournisseur enregistré par une autre extension.",
+  "config.ai.endpoint.description": "URL de base d’une API compatible OpenAI. Exemples : https://generativelanguage.googleapis.com/v1beta/openai (Gemini), http://localhost:11434/v1 (Ollama).",
+  "config.ai.model.description": "Nom du modèle, p. ex. gpt-4o-mini, gemini-2.0-flash ou llama3.1.",
+  "config.ai.maxChars.description": "Quantité maximale de texte PDF (en caractères) envoyée à un fournisseur.",
+  "config.feedback.githubRepo.description": "URL GitHub (https://github.com/Name/Repo) vers laquelle sont envoyés les rapports de problème. Vide : utiliser l’adresse de bugs/repository de l’extension.",
+  "config.feedback.email.description": "Adresse e-mail pour les rapports de problème et les retours."
+}
