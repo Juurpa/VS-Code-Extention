@@ -98,3 +98,15 @@ Each follows the same rules: originals are never overwritten, results are new fi
 ## Release model
 
 PDF Workbench stays **100% free** (Apache-2.0), with no paid tier and no license keys. Donations are welcome through a sponsor link (Buy Me a Coffee, GitHub Sponsors) once the accounts are set up. To do: add the link to `package.json` (`sponsor`), `.github/FUNDING.yml` and a short README section.
+
+## Build order (agreed 14 Oct 2026)
+
+Each item gets its own short design, build and test round; nothing is pushed without approval.
+
+1. **Compare two PDFs** (engine `mcp/compare.mjs`, AI tool `pdf_compare`, side-by-side view).
+2. **Table extraction** to CSV / Markdown / JSON with page references.
+3. **Export to Markdown**; Word import/export later (needs a vetted library and licence entry).
+4. **Image downsampling inside PDFs**, so `pdf_compress` really saves space.
+5. **Open and edit HTML, Markdown and JSON** in the same workbench: rendered or live preview next to the source, formatting and validation (JSON). VS Code already edits these as text; the value added is one place with preview.
+6. **Real text editing on the PDF page** (hard: fonts and layout).
+7. **Workbench Image** as a separate extension: resize/compress (for example under a size limit), crop, strip EXIF, OCR.

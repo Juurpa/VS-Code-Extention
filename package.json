@@ -133,5 +133,8 @@
   "bugs": {
     "url": "https://github.com/Juurpa/VS-Code-Extention/issues"
   },
-  "homepage": "https://github.com/Juurpa/VS-Code-Extention#readme"
+  "homepage": "https://github.com/Juurpa/VS-Code-Extention#readme",
+  "sponsor": {
+    "url": "https://buymeacoffee.com/juurpa"
+  }
 }
