@@ -26,7 +26,12 @@ function registerProvider(p) {
 }
 
 async function openClaude(promptText) {
-  await vscode.env.clipboard.writeText(promptText);
+  await vscode.env.clipboard.writeText(promptText); // stays as a backup
+  // Claude Code can open with the prompt already typed in (it only waits for Enter)
+  const known = await vscode.commands.getCommands(true);
+  if (known.includes('claude-vscode.primaryEditor.open')) {
+    try { await vscode.commands.executeCommand('claude-vscode.primaryEditor.open', undefined, promptText); vscode.window.showInformationMessage(vscode.l10n.t('Prompt inserted into Claude Code. Check it and send it with Enter.')); return; } catch (e) { /* fall back to copy and paste */ }
+  }
   if (!cfg().get('openClaudeAfterPrompt')) { vscode.window.showInformationMessage(vscode.l10n.t('Prompt copied. Paste it into Claude Code (Ctrl+V).')); return; }
   const all = await vscode.commands.getCommands(true);
   const candidates = ['claude-vscode.sidebar.open', 'claude-vscode.editor.open', 'claude-vscode.focus', 'claude-vscode.sidebar.focus'];

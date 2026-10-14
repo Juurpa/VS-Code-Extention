@@ -77,5 +77,6 @@
   "No recipient has been configured for this version yet. Copy the report or save it as a file and send it to the developer.": "Aún no se ha configurado ningún destinatario para esta versión. Copie el informe o guárdelo como archivo y envíelo al desarrollador.",
   "Description": "Descripción",
   "Request or Idea": "Petición o idea",
-  "Your text probably contains private details ({0}). Please remove them before sending.": "El texto probablemente contiene datos privados ({0}). Elimínelos antes de enviar."
+  "Your text probably contains private details ({0}). Please remove them before sending.": "El texto probablemente contiene datos privados ({0}). Elimínelos antes de enviar.",
+  "Prompt inserted into Claude Code. Check it and send it with Enter.": "Prompt insertado en Claude Code. Revísalo y envíalo con Intro."
 }

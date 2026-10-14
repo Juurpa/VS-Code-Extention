@@ -224,5 +224,9 @@ export default {
   'Text recognized on {n} page ({words} words).': 'Tekst herkend op {n} pagina ({words} woorden).',
   'Text recognized on {n} pages ({words} words).': "Tekst herkend op {n} pagina's ({words} woorden).",
   'Scanned rotated: page {pages}.': 'Gedraaid gescand: pagina {pages}.',
-  'Low-confidence recognition on page {pages}: please check.': 'Onzekere herkenning op pagina {pages}: controleer dit.'
+  'Low-confidence recognition on page {pages}: please check.': 'Onzekere herkenning op pagina {pages}: controleer dit.',
+  "Edit signature …": "Handtekening bewerken …",
+  "Replace with this signature": "Vervangen door deze handtekening",
+  "Use this signature (right-click to delete)": "Deze handtekening gebruiken (rechtsklik om te verwijderen)",
+  "Delete saved signature": "Opgeslagen handtekening verwijderen",
 };

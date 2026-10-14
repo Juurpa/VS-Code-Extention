@@ -8,6 +8,7 @@ import path from 'node:path';
 import { ops, info, readText, find, redact, redactVerified, KINDS, parsePages } from './ops.mjs';
 import { ocrPdf, detectScanned } from './ocr.mjs';
 import { formFields, fillForm, flattenForm, watermark, readMetadata, writeMetadata } from './formtools.mjs';
+import { comparePdfs, reportMarkdown } from './compare.mjs';
 
 const ROOT = path.resolve(process.env.PDF_WORKBENCH_ROOT || process.env.WERKBANK_ROOT || process.cwd());
 const DATA = process.env.PDF_WORKBENCH_DATA || process.env.WERKBANK_DATA || '_pdf-workbench';
@@ -116,6 +117,18 @@ const TOOLS = [
       const out = write(freeName(a.file, a.action === 'clear' ? 'clean' : 'meta', a.out), r.bytes);
       return { file: out, metadata_after: await readMetadata(r.bytes) };
     } },
+  { name: 'pdf_compare', description: 'Compares two PDFs by text and shows what changed between the old and the new version. Pages are matched first, so inserted or removed pages do not shift the rest; then the words of matched pages are compared. Returns a summary (changed, unchanged, added, removed pages, words added and removed) and the changes per page (old text, new text, a little context; at most 150 changes in the answer). Also writes the full report as a new Markdown file next to the old PDF. Pages without text (scans) cannot be compared: run pdf_ocr on them first. Changes in images, layout or fonts are not detected, only text.', inputSchema: { type: 'object', properties: { file_old: FILE, file_new: FILE, out: { type: 'string', description: 'Optional name of the Markdown report. Default: next to the old file, with the suffix _compare.md. Existing files are never overwritten.' } }, required: ['file_old', 'file_new'] },
+    run: async (a) => {
+      const res = await comparePdfs(readPdf(a.file_old), readPdf(a.file_new));
+      const md = reportMarkdown(res, path.basename(String(a.file_old)), path.basename(String(a.file_new)));
+      let target;
+      if (a.out) { target = safe(a.out); if (fs.existsSync(target)) throw new Error(`"${a.out}" already exists. Choose another name – existing files are never overwritten.`); }
+      else { const base = safe(a.file_old).replace(/.pdf$/i, ''); let n = 0; do { target = `${base}_compare${n ? '_' + (n + 1) : ''}.md`; n++; } while (fs.existsSync(target)); }
+      const report = write(target, Buffer.from(md, 'utf8'));
+      let left = 150;
+      const pages = res.pages.filter((p) => p.status !== 'same').map((p) => { const changes = p.changes.slice(0, Math.max(0, left)); left -= changes.length; return { ...p, changes, ...(changes.length < p.changes.length ? { more_in_report: p.changes.length - changes.length } : {}) }; });
+      return { summary: res.summary, pages, report };
+    } },
 ];
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
 
@@ -126,7 +139,7 @@ async function handle(msg) {
   const { id, method, params } = msg;
   if (id === undefined) return; // notification
   try {
-    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pdf-workbench', version: '0.8.2' }, instructions: INSTRUCTIONS } });
+    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pdf-workbench', version: '0.8.3' }, instructions: INSTRUCTIONS } });
     if (method === 'ping') return send({ jsonrpc: '2.0', id, result: {} });
     if (method === 'tools/list') return send({ jsonrpc: '2.0', id, result: { tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) } });
     if (method === 'tools/call') {

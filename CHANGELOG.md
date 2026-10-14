@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.3
+- New icon set (one grid, one line style) in the toolbar, menus and page sidebar.
+- Quick bar: pin tools from the Tools menu, drag to reorder, right-click to unpin. Saved by the extension.
+- Saved signatures: keep up to 12, pick one from the toolbar, delete saved ones. Right-click a placed signature to edit, duplicate, remove or replace it. Right-click a redaction area to duplicate or remove it.
+- AI button: the prompt is now typed into Claude Code directly (you only press Enter); it is still copied as a backup.
+- Seven interface languages: de, fr, es, it, nl, pl, pt (follows the VS Code language, English fallback).
+- New AI tool `pdf_compare`: compares two PDFs by text (pages matched first, then words), returns the changes and writes a Markdown report.
+
 ## 0.8.2
 - German interface (follows the VS Code language; English fallback): viewer, dialogs, messages, commands and settings.
 - Signatures and redaction areas: small × button on hover and the Delete key; redaction areas can be moved and resized; the eraser hint mentions signatures.

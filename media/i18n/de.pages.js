@@ -9,7 +9,7 @@ export default {
   'Delete': 'Löschen',
   'Move up': 'Nach oben',
   'Move down': 'Nach unten',
-  'Extract as new PDF': 'Als neue PDF extrahieren',
+  'Extract as new PDF': 'Als neues PDF extrahieren',
   'Insert pages from PDF after …': 'Seiten aus PDF einfügen nach …',
   'Delete (Del)': 'Löschen (Entf)',
 
@@ -30,14 +30,14 @@ export default {
   'Set the order. The result replaces this document in the editor; the file is only written when you click "Save".': 'Reihenfolge festlegen. Das Ergebnis ersetzt dieses Dokument im Editor; die Datei wird erst beim Klick auf „Speichern“ geschrieben.',
   'Cancel': 'Abbrechen',
   'Merge': 'Zusammenführen',
-  'Please add at least one more PDF.': 'Bitte mindestens eine weitere PDF hinzufügen.',
+  'Please add at least one more PDF.': 'Bitte mindestens ein weiteres PDF hinzufügen.',
   'Merged: {n} pages.': 'Zusammengeführt: {n} Seiten.',
 
   // Split
   'By page ranges': 'Nach Seitenbereichen',
   'Every … pages': 'Alle … Seiten',
   'Ranges': 'Bereiche',
-  'Each range becomes its own PDF. Example: 1-3, 5, 7-9': 'Jeder Bereich wird eine eigene PDF. Beispiel: 1-3, 5, 7-9',
+  'Each range becomes its own PDF. Example: 1-3, 5, 7-9': 'Jeder Bereich wird ein eigenes PDF. Beispiel: 1-3, 5, 7-9',
   'Pages per file': 'Seiten pro Datei',
   'Split PDF': 'PDF aufteilen',
   'Mode': 'Modus',
@@ -159,5 +159,9 @@ export default {
   'Text recognized on {n} page ({words} words).': 'Text auf {n} Seite erkannt ({words} Wörter).',
   'Text recognized on {n} pages ({words} words).': 'Text auf {n} Seiten erkannt ({words} Wörter).',
   'Scanned rotated: page {pages}.': 'Gedreht gescannt: Seite {pages}.',
-  'Low-confidence recognition on page {pages}: please check.': 'Unsichere Erkennung auf Seite {pages}: bitte prüfen.'
+  'Low-confidence recognition on page {pages}: please check.': 'Unsichere Erkennung auf Seite {pages}: bitte prüfen.',
+  "Edit signature …": "Unterschrift bearbeiten …",
+  "Replace with this signature": "Durch diese Unterschrift ersetzen",
+  "Use this signature (right-click to delete)": "Diese Unterschrift verwenden (Rechtsklick zum Löschen)",
+  "Delete saved signature": "Gespeicherte Unterschrift löschen",
 };

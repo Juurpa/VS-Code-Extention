@@ -72,7 +72,7 @@ async function start() {
   try {
     const [buf, init] = await Promise.all([fetch(cfg.pdfUri).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }), initP]);
     S.bytes = new Uint8Array(buf).slice();
-    S.ann = init.ann || {}; S.sig = init.sig || null; S.quick = Array.isArray(init.quick) ? init.quick : []; renderQuick(); applyAi(init.ai);
+    S.ann = init.ann || {}; S.sigs = Array.isArray(init.sigs) ? init.sigs : []; S.sigId = init.sigId || null; S.sig = (S.sigs.find((g) => g.id === S.sigId) || S.sigs[S.sigs.length - 1] || {}).png || init.sig || null; S.quick = Array.isArray(init.quick) ? init.quick : []; renderQuick(); applyAi(init.ai);
     await loadDoc();
     showMsg('');
     fitWidth(true);
@@ -369,7 +369,7 @@ function showMenu(x, y, items) {
   const m = $('#menuPop');
   const row = (it) => {
     if (it === '-') return el('div', { class: 'msep' });
-    const b = el('button', { class: 'mi', disabled: !!it.d, onclick: () => { hideMenu(); it.f && it.f(); } }, it.ic ? el('span', { class: 'mic', html: icon(it.ic) }) : null, el('span', {}, it.l), it.k ? el('small', {}, it.k) : '');
+    const b = el('button', { class: 'mi', disabled: !!it.d, onclick: () => { hideMenu(); it.f && it.f(); } }, it.ic ? el('span', { class: 'mic', html: icon(it.ic) }) : null, it.img ? el('img', { class: 'mimg', src: it.img, alt: '' }) : null, it.l ? el('span', {}, it.l) : null, it.k ? el('small', {}, it.k) : '');
     if (!it.pin) return b;
     const on = S.quick.includes(it.pin), tip = on ? t('Remove from quick bar') : t('Pin to quick bar');
     const p = el('button', { class: 'pinBtn' + (on ? ' on' : ''), type: 'button', title: tip, 'aria-label': tip, 'aria-pressed': String(on), html: icon('pin'), onclick: (e) => { e.stopPropagation(); toggleQuick(it.pin); showMenu(x, y, items); } });
@@ -575,7 +575,7 @@ $('#tFile').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, [{ l: t('Save (overwrite file)'), f: saveFile }, { l: t('Save as …'), f: saveAs }]);
 };
-Object.assign(S.api, { reload, request, post, showMenu, goTo, flushAnn, saveAnn, getAllTexts, updateUndo, renderToolOpts, addItem, removeItem, setTool });
+Object.assign(S.api, { reload, request, post, showMenu, goTo, flushAnn, saveAnn, getAllTexts, updateUndo, renderToolOpts, addItem, removeItem, setTool, renderAnn });
 initPages(); initTools();
 S.tool = 'none'; setTool('select');
 window.__pdfWorkbench = { S, getAllTexts };

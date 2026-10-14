@@ -189,3 +189,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pinBtn{border:0;background:transparent;color:var(--muted);width:30px;height:30px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;opacity:.55;flex:none}
 .miRow:hover .pinBtn,.pinBtn:focus-visible,.pinBtn.on{opacity:1}.pinBtn:hover{background:var(--pill)}.pinBtn.on{color:var(--accent)}
 .pinBtn.on svg{fill:currentColor}
+
+.mimg{height:26px;max-width:120px;object-fit:contain;background:#fff;border-radius:4px;padding:2px 6px;flex:none}
+.sigLib{display:inline-flex;gap:6px;align-items:center;margin:0 4px}
+.sigThumb{position:relative;height:30px;padding:2px 8px;background:#fff;border:2px solid transparent;border-radius:6px;cursor:pointer}
+.sigThumb img{height:100%;max-width:90px;object-fit:contain;display:block}
+.sigThumb.on{border-color:var(--accent)}.sigThumb:hover{border-color:var(--accent)}
+.thDel{position:absolute;top:-8px;right:-8px;width:16px;height:16px;border-radius:50%;background:var(--danger,#e53935);color:#fff;font:700 12px/16px system-ui,sans-serif;text-align:center;display:none;font-style:normal}
+.sigThumb:hover .thDel{display:block}
+
+.mi>span:not(.mic){flex:1;text-align:left}

@@ -21,7 +21,7 @@ PDF Workbench turns VS Code into a workspace for documents. Everything is stored
 - [At a glance](#at-a-glance)
 - [Get started](#get-started)
 - [Features](#features)
-- [The 20 tools for the AI](#the-20-tools-for-the-ai-mcp)
+- [The 21 tools for the AI](#the-21-tools-for-the-ai-mcp)
 - [Choose your AI](#choose-your-ai)
 - [Privacy](#privacy)
 - [Where data is stored](#where-data-is-stored)
@@ -40,7 +40,7 @@ PDF Workbench turns VS Code into a workspace for documents. Everything is stored
 | Hide sensitive data for real | Redaction that removes the text from the file, then checks the result independently |
 | Make a scan searchable | Offline OCR (German and English), text sits invisibly behind the scan image |
 | Fill forms, stamp, clean up | Form filling, watermarks and stamps, metadata viewer and cleaner (AI tools) |
-| Let an AI do the routine work | 20 PDF tools over MCP; you review and approve |
+| Let an AI do the routine work | 21 PDF tools over MCP; you review and approve |
 | Keep everything private | All core features run offline; nothing is sent on its own |
 
 ## Get started
@@ -77,7 +77,7 @@ PDF Workbench turns VS Code into a workspace for documents. Everything is stored
 ### Bug reports and feedback
 - **PDF Workbench: Report a problem…** and **PDF Workbench: Send feedback…** show the complete report before anything leaves your machine. Reports never contain document content, and nothing is sent without your explicit approval.
 
-## The 20 tools for the AI (MCP)
+## The 21 tools for the AI (MCP)
 
 The command **PDF Workbench: Set up PDF tools for AI (MCP)** writes a `.mcp.json` file. Claude Code (or another MCP client) can then use these tools. Original files are never overwritten: every tool writes a new file. Signing and sending always stay with you. The MCP server runs with the Node runtime built into VS Code; you do not need to install Node.
 
@@ -89,6 +89,7 @@ The command **PDF Workbench: Set up PDF tools for AI (MCP)** writes a `.mcp.json
 | Size | `pdf_compress` | Light size reduction by rewriting the structure and removing metadata |
 | Forms | `pdf_form_fields`, `pdf_fill_form`, `pdf_flatten_form` | List, fill and fix form fields. The AI never fills passwords or ID numbers on its own. |
 | Stamp and clean | `pdf_watermark`, `pdf_metadata` | Text watermark or stamp; read, change or remove metadata before sharing |
+| Compare | `pdf_compare` | Two versions of a PDF: pages are matched first, then the words; changes per page plus a Markdown report |
 
 ## Choose your AI
 

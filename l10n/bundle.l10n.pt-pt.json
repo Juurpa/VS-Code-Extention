@@ -5,7 +5,7 @@
   "Note: The PDF text is still being stored. If the AI cannot find it, try again in a moment.": "Nota: o texto do PDF ainda está a ser guardado. Se a IA não o encontrar, tentar novamente dentro de instantes.",
   "Select": "Selecionar",
   "Cancelled.": "Cancelado.",
-  "Nothing was redacted.": "Nada foi ocultado.",
+  "Nothing was redacted.": "Nada foi rasurado.",
   "Overwrite “{0}” with the changes? Use “Save As” to keep the original.": "Substituir “{0}” pelas alterações? Com “Guardar como” o original é preservado.",
   "Overwrite": "Substituir",
   "PDF Workbench: {0}": "PDF Workbench: {0}",
@@ -56,12 +56,12 @@
   "Request / Idea": "Pedido / Ideia",
   "Praise / General": "Elogio / Geral",
   "Short title": "Título curto",
-  "e.g. Redaction fails on page 3": "p. ex. a ocultação falha na página 3",
+  "e.g. Redaction fails on page 3": "p. ex. a rasura falha na página 3",
   "What happened?": "O que aconteceu?",
   "What did you expect?": "O que era esperado?",
   "(optional)": "(opcional)",
   "Steps to reproduce": "Passos para reproduzir",
-  "1. Open a PDF&#10;2. Tools → Redact&#10;3. …": "1. Abrir um PDF&#10;2. Ferramentas → Ocultar conteúdo&#10;3. …",
+  "1. Open a PDF&#10;2. Tools → Redact&#10;3. …": "1. Abrir um PDF&#10;2. Ferramentas → Rasurar&#10;3. …",
   "Contact for questions": "Contacto para esclarecimentos",
   "(optional, e.g. email)": "(opcional, p. ex. e-mail)",
   "What should be included?": "O que deve ser incluído?",
@@ -77,5 +77,6 @@
   "No recipient has been configured for this version yet. Copy the report or save it as a file and send it to the developer.": "Ainda não foi definido um destinatário para esta versão. Copiar o relatório ou guardá-lo como documento e enviá-lo ao programador.",
   "Description": "Descrição",
   "Request or Idea": "Pedido ou ideia",
-  "Your text probably contains private details ({0}). Please remove them before sending.": "O texto contém provavelmente dados privados ({0}). Removê-los antes de enviar."
+  "Your text probably contains private details ({0}). Please remove them before sending.": "O texto contém provavelmente dados privados ({0}). Removê-los antes de enviar.",
+  "Prompt inserted into Claude Code. Check it and send it with Enter.": "Prompt inserido no Claude Code. Confira e envie com Enter."
 }

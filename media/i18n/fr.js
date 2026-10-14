@@ -234,5 +234,9 @@ export default {
   'Text recognized on {n} page ({words} words).': 'Texte reconnu sur {n} page ({words} mots).',
   'Text recognized on {n} pages ({words} words).': 'Texte reconnu sur {n} pages ({words} mots).',
   'Scanned rotated: page {pages}.': 'Scan pivoté : page {pages}.',
-  'Low-confidence recognition on page {pages}: please check.': 'Reconnaissance peu fiable page {pages} : à vérifier.'
+  'Low-confidence recognition on page {pages}: please check.': 'Reconnaissance peu fiable page {pages} : à vérifier.',
+  "Edit signature …": "Modifier la signature …",
+  "Replace with this signature": "Remplacer par cette signature",
+  "Use this signature (right-click to delete)": "Utiliser cette signature (clic droit pour supprimer)",
+  "Delete saved signature": "Supprimer la signature enregistrée",
 };

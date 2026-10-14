@@ -17,6 +17,13 @@ export function drawRed(rec) {
       el('button', { class: 'boxDel', type: 'button', title: t('Remove area (Del)'), 'aria-label': t('Remove area'), html: '&times;', onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); if (S.tool === 'redact') remove(); } }));
     const place = () => { d.style.cssText = `left:${r[0] * 100}%;top:${r[1] * 100}%;width:${r[2] * 100}%;height:${r[3] * 100}%`; };
     for (const h of ['nw', 'ne', 'sw', 'se']) d.append(el('i', { class: 'redH ' + h, 'data-h': h }));
+    d.addEventListener('contextmenu', (e) => {
+      if (S.tool !== 'redact') return; e.preventDefault(); e.stopPropagation();
+      S.api.showMenu(e.clientX, e.clientY, [
+        { l: t('Duplicate'), ic: 'duplicate', f: () => { list.push([Math.min(1 - r[2], r[0] + 0.02), Math.min(1 - r[3], r[1] + 0.02), r[2], r[3]]); drawRed(rec); S.api.renderToolOpts(); } },
+        { l: t('Remove'), ic: 'trash', k: 'Del', f: remove }
+      ]);
+    });
     // Move by dragging the bar, resize by dragging a corner
     d.addEventListener('pointerdown', (e) => {
       if (S.tool !== 'redact' || e.button !== 0 || e.target.closest('.boxDel')) return;
@@ -81,7 +88,22 @@ function trimCanvas(c) {
   const pad = 6, o = document.createElement('canvas'); o.width = x1 - x0 + 2 * pad; o.height = y1 - y0 + 2 * pad;
   o.getContext('2d').drawImage(c, x0, y0, x1 - x0, y1 - y0, pad, pad, x1 - x0, y1 - y0); return o;
 }
-export function signatureDialog(then) {
+// Saved signatures (kept by the host in the VS Code global state, newest last, at most 12)
+export function addSig(png) {
+  const id = uid(); S.sigs = [...(S.sigs || []), { id, png }].slice(-12); S.sigId = id; S.sig = png;
+  S.api.post({ type: 'saveSig', id, png });
+}
+export function selectSig(id) {
+  const g = (S.sigs || []).find((x) => x.id === id); if (!g) return;
+  S.sigId = id; S.sig = g.png; S.api.post({ type: 'selectSig', id }); S.api.renderToolOpts();
+}
+export function deleteSig(id) {
+  S.sigs = (S.sigs || []).filter((x) => x.id !== id);
+  const last = S.sigs[S.sigs.length - 1] || null; if (S.sigId === id) { S.sigId = last ? last.id : null; S.sig = last ? last.png : null; }
+  S.api.post({ type: 'deleteSig', id }); S.api.renderToolOpts();
+}
+// opts.img: start from this image (edit); opts.onApply(png): called instead of just selecting the new signature
+export function signatureDialog(then, opts = {}) {
   const c = el('canvas', { width: 560, height: 200, class: 'sigPad' }), g = c.getContext('2d');
   g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#111';
   let down = false, last = null;
@@ -89,6 +111,7 @@ export function signatureDialog(then) {
   c.addEventListener('pointerdown', (e) => { down = true; last = pt(e); c.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...last); g.lineTo(last[0] + 0.1, last[1]); g.stroke(); });
   c.addEventListener('pointermove', (e) => { if (!down) return; const p = pt(e); g.beginPath(); g.moveTo(...last); g.lineTo(...p); g.stroke(); last = p; });
   const up = () => { down = false; }; c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+  if (opts.img) { const im0 = new Image(); im0.onload = () => { const s = Math.min((c.width - 20) / im0.width, (c.height - 20) / im0.height, 1); g.drawImage(im0, (c.width - im0.width * s) / 2, (c.height - im0.height * s) / 2, im0.width * s, im0.height * s); }; im0.src = opts.img; }
   const file = el('input', { type: 'file', accept: 'image/png,image/jpeg', hidden: true });
   file.onchange = () => {
     const f = file.files[0]; if (!f) return;
@@ -105,7 +128,7 @@ export function signatureDialog(then) {
     el('div', { class: 'row', style: 'justify-content:flex-start' }, el('button', { class: 'pillBtn', onclick: () => g.clearRect(0, 0, c.width, c.height) }, t('Clear')), el('button', { class: 'pillBtn', onclick: () => file.click() }, t('Load image …')))),
     actions: [{ label: t('Cancel') }, { label: t('Apply'), primary: true, onClick: () => {
       const tr = trimCanvas(c); if (!tr) { toast(t('Please sign first.')); return false; }
-      S.sig = tr.toDataURL('image/png'); S.api.post({ type: 'saveSig', png: S.sig }); S.api.renderToolOpts(); then && then();
+      const png = tr.toDataURL('image/png'); addSig(png); opts.onApply && opts.onApply(png); S.api.renderToolOpts(); then && then();
     } }] });
 }
 
@@ -134,6 +157,16 @@ export function makeSigEl(n, s) {
     box.addEventListener('pointermove', mv); box.addEventListener('pointerup', up);
   };
   handle.addEventListener('pointerdown', drag(true)); img.addEventListener('pointerdown', drag(false));
+  box.addEventListener('contextmenu', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const swap = (png) => { s.img = png; S.api.renderAnn(n); S.api.saveAnn(); };
+    S.api.showMenu(e.clientX, e.clientY, [
+      { l: t('Edit signature …'), ic: 'pen', f: () => signatureDialog(null, { img: s.img, onApply: swap }) },
+      { l: t('Duplicate'), ic: 'duplicate', f: () => S.api.addItem('sigs', n, { ...s, id: uid(), x: Math.min(1 - s.w, s.x + 0.03), y: Math.min(1 - s.h, s.y + 0.03) }) },
+      { l: t('Remove'), ic: 'trash', k: 'Del', f: () => S.api.removeItem('sigs', n, s.id) },
+      ...((S.sigs || []).length ? ['-', ...S.sigs.map((g) => ({ img: g.png, l: t('Replace with this signature'), f: () => swap(g.png) }))] : [])
+    ]);
+  });
   return box;
 }
 
@@ -160,8 +193,11 @@ export function toolOpts(tool, o) {
       el('button', { class: 'pillBtn', disabled: !n, onclick: () => { S.red = {}; S.pages.forEach(drawRed); S.api.renderToolOpts(); } }, t('Reset')),
       el('span', { class: 'muted' }, t('The text under the bars is removed and verified. The remaining text stays searchable.')));
   } else if (tool === 'sign') {
-    o.append(S.sig ? el('img', { src: S.sig, class: 'sigPrev' }) : null,
-      el('span', {}, S.sig ? t('Click on the page to place the signature.') : t('No signature created yet.')),
+    o.append(el('span', {}, S.sig ? t('Click on the page to place the signature.') : t('No signature created yet.')),
+      el('span', { class: 'sigLib' }, ...(S.sigs || []).map((g) => el('button', { class: 'sigThumb' + (g.id === S.sigId ? ' on' : ''), type: 'button', title: t('Use this signature (right-click to delete)'),
+        onclick: () => selectSig(g.id), oncontextmenu: (e) => { e.preventDefault(); deleteSig(g.id); } },
+        el('img', { src: g.png, alt: '' }),
+        el('i', { class: 'thDel', title: t('Delete saved signature'), role: 'button', html: '&times;', onclick: (e) => { e.stopPropagation(); deleteSig(g.id); } })))),
       el('button', { class: 'pillBtn', onclick: () => signatureDialog() }, S.sig ? t('Create new …') : t('Create signature …')));
     if (!S.sig) signatureDialog();
   }

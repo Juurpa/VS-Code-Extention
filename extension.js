@@ -6,6 +6,13 @@ const ai = require('./ai');
 const fb = require('./feedback');
 
 const cfg = () => vscode.workspace.getConfiguration('pdfWorkbench');
+// Saved signatures: a list of { id, png }; the single signature of older versions becomes the first entry
+function sigLibrary(ctx) {
+  const lib = ctx.globalState.get('pdfWorkbench.sigs');
+  if (Array.isArray(lib)) return lib.filter((g) => g && typeof g.id === 'string' && typeof g.png === 'string');
+  const old = ctx.globalState.get('pdfWorkbench.sig');
+  return old ? [{ id: 'first', png: old }] : [];
+}
 const enc = (s) => Buffer.from(s, 'utf8');
 const dec = (b) => Buffer.from(b).toString('utf8');
 
@@ -67,7 +74,7 @@ class PdfEditorProvider {
               const [a, b] = await Promise.all([vscode.workspace.fs.stat(textUri), vscode.workspace.fs.stat(uri)]);
               hasText = a.mtime >= b.mtime;
             }
-            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('pdfWorkbench.sig') || null, quick: this.ctx.globalState.get('pdfWorkbench.quick') || [], ai: aiInfo(panel.webview, mediaUri) });
+            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('pdfWorkbench.sig') || null, sigs: sigLibrary(this.ctx), sigId: this.ctx.globalState.get('pdfWorkbench.sigId') || null, quick: this.ctx.globalState.get('pdfWorkbench.quick') || [], ai: aiInfo(panel.webview, mediaUri) });
             break;
           }
           case 'saveAnn':
@@ -92,7 +99,24 @@ class PdfEditorProvider {
             await ai.runTask(this.ctx, msg.kind, { relPdf, dataFolder, page: msg.page, selection: msg.selection, count: msg.count, dirUri, textUri, marksUri });
             break;
           }
-          case 'saveSig': await this.ctx.globalState.update('pdfWorkbench.sig', msg.png); break;
+          case 'saveSig': {
+            if (typeof msg.png !== 'string' || !msg.png.startsWith('data:image/png')) break;
+            const id = String(msg.id || Date.now()).slice(0, 40);
+            await this.ctx.globalState.update('pdfWorkbench.sigs', [...sigLibrary(this.ctx).filter((g) => g.id !== id), { id, png: msg.png }].slice(-12));
+            await this.ctx.globalState.update('pdfWorkbench.sigId', id); await this.ctx.globalState.update('pdfWorkbench.sig', msg.png);
+            break;
+          }
+          case 'selectSig': {
+            const g = sigLibrary(this.ctx).find((x) => x.id === msg.id);
+            if (g) { await this.ctx.globalState.update('pdfWorkbench.sigId', g.id); await this.ctx.globalState.update('pdfWorkbench.sig', g.png); }
+            break;
+          }
+          case 'deleteSig': {
+            const rest = sigLibrary(this.ctx).filter((g) => g.id !== msg.id), last = rest[rest.length - 1] || null;
+            await this.ctx.globalState.update('pdfWorkbench.sigs', rest);
+            await this.ctx.globalState.update('pdfWorkbench.sigId', last ? last.id : null); await this.ctx.globalState.update('pdfWorkbench.sig', last ? last.png : null);
+            break;
+          }
           case 'saveQuick': await this.ctx.globalState.update('pdfWorkbench.quick', Array.isArray(msg.ids) ? msg.ids.filter((x) => typeof x === 'string').slice(0, 20) : []); break;
           case 'pickPdfs': {
             const picked = await vscode.window.showOpenDialog({ canSelectMany: !!msg.multi, filters: { PDF: ['pdf'] }, defaultUri: vscode.Uri.file(path.dirname(uri.fsPath)), openLabel: vscode.l10n.t('Select') });
