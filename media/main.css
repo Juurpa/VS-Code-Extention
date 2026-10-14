@@ -157,3 +157,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .boxDel{position:absolute;top:-10px;right:-10px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:var(--danger,#e53935);color:#fff;font:700 15px/20px system-ui,sans-serif;text-align:center;cursor:pointer;display:none;box-shadow:0 1px 4px rgba(0,0,0,.5);z-index:2}
 .boxDel:hover{filter:brightness(1.15)}
 .sigMark:hover .boxDel,.sigMark:focus-within .boxDel,.tool-redact .redBox:hover .boxDel{display:block}
+.tool-redact .redBox{cursor:move;touch-action:none}
+.redH{position:absolute;width:10px;height:10px;background:#fff;border:2px solid var(--danger);border-radius:2px;display:none}
+.tool-redact .redBox:hover .redH{display:block}
+.redH.nw{left:-6px;top:-6px;cursor:nwse-resize}.redH.ne{right:-6px;top:-6px;cursor:nesw-resize}
+.redH.sw{left:-6px;bottom:-6px;cursor:nesw-resize}.redH.se{right:-6px;bottom:-6px;cursor:nwse-resize}

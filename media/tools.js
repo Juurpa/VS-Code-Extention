@@ -14,7 +14,29 @@ export function drawRed(rec) {
     const remove = () => { list.splice(i, 1); if (!list.length) delete S.red[rec.n]; drawRed(rec); S.api.renderToolOpts(); };
     const d = el('div', { class: 'redBox', title: 'Redaction area' },
       el('button', { class: 'boxDel', type: 'button', title: 'Remove area (Del)', 'aria-label': 'Remove area', html: '&times;', onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); if (S.tool === 'redact') remove(); } }));
-    d.style.cssText = `left:${r[0] * 100}%;top:${r[1] * 100}%;width:${r[2] * 100}%;height:${r[3] * 100}%`; return d;
+    const place = () => { d.style.cssText = `left:${r[0] * 100}%;top:${r[1] * 100}%;width:${r[2] * 100}%;height:${r[3] * 100}%`; };
+    for (const h of ['nw', 'ne', 'sw', 'se']) d.append(el('i', { class: 'redH ' + h, 'data-h': h }));
+    // Move by dragging the bar, resize by dragging a corner
+    d.addEventListener('pointerdown', (e) => {
+      if (S.tool !== 'redact' || e.button !== 0 || e.target.closest('.boxDel')) return;
+      e.preventDefault(); e.stopPropagation();
+      const pr = rec.el.getBoundingClientRect(), o = r.slice(), mode = e.target.dataset.h || 'move', sx = e.clientX, sy = e.clientY, MIN = 0.01;
+      d.setPointerCapture(e.pointerId);
+      const mv = (ev) => {
+        const dx = (ev.clientX - sx) / pr.width, dy = (ev.clientY - sy) / pr.height;
+        if (mode === 'move') { r[0] = Math.min(1 - o[2], Math.max(0, o[0] + dx)); r[1] = Math.min(1 - o[3], Math.max(0, o[1] + dy)); }
+        else {
+          let x0 = o[0], y0 = o[1], x1 = o[0] + o[2], y1 = o[1] + o[3];
+          if (mode.includes('w')) x0 = Math.min(x1 - MIN, Math.max(0, o[0] + dx)); else x1 = Math.max(x0 + MIN, Math.min(1, x1 + dx));
+          if (mode.includes('n')) y0 = Math.min(y1 - MIN, Math.max(0, o[1] + dy)); else y1 = Math.max(y0 + MIN, Math.min(1, y1 + dy));
+          r[0] = x0; r[1] = y0; r[2] = x1 - x0; r[3] = y1 - y0;
+        }
+        place();
+      };
+      const up = () => { d.removeEventListener('pointermove', mv); d.removeEventListener('pointerup', up); d.removeEventListener('pointercancel', up); };
+      d.addEventListener('pointermove', mv); d.addEventListener('pointerup', up); d.addEventListener('pointercancel', up);
+    });
+    place(); return d;
   }));
 }
 const hit = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
