@@ -184,14 +184,59 @@ export function cropDialog() {
     } }] });
 }
 
+// Page numbers: styles with examples, position grid and a live preview on the real page
+export const NUMBER_STYLES = [['{n}', '1'], ['- {n} -', '- 1 -'], ['Page {n}', 'Page 1'], ['Page {n} of {N}', 'Page 1 of 9'], ['{n} / {N}', '1 / 9']];
 export function numberDialog() {
-  const fmt = el('input', { type: 'text', value: 'Page {n} of {N}' });
-  const pos = el('select', {}, ...[['bottom-center', 'Bottom center'], ['bottom-right', 'Bottom right'], ['bottom-left', 'Bottom left'], ['top-center', 'Top center'], ['top-right', 'Top right'], ['top-left', 'Top left']].map(([v, t]) => el('option', { value: v }, t)));
-  const size = numInput(10, 6, 30), start = numInput(1, 0, 9999);
-  modal({ title: 'Insert page numbers', body: el('div', { class: 'stack' }, field('Format', fmt, '{n} = page number, {N} = total pages'), field('Position', pos), el('div', { class: 'grid2' }, field('Font size', size), field('First number', start))),
-    actions: [{ label: 'Cancel' }, { label: 'Insert', primary: true, onClick: () => {
-      guard(async () => commit(await ops.numberPages(S.bytes, { format: fmt.value, pos: pos.value, size: +size.value, start: +start.value }), clone(S.ann)));
-    } }] });
+  const st = { format: 'Page {n} of {N}', pos: 'bottom-center', size: 11, margin: 24, start: 1, skipFirst: false, onlySel: false };
+  const N = nPages(), cur = S.cur, sel = S.sel.size > 1 ? [...S.sel].sort((a, b) => a - b).map((n) => n - 1) : null;
+  const fmtText = (i) => st.format.replace(/\{n\}/g, String(st.start + i)).replace(/\{N\}/g, String(N + st.start - 1));
+  const prev = el('div', { class: 'numPrev' }), cv = el('canvas'), tag = el('div', { class: 'numTag' });
+  prev.append(cv, tag);
+  let vp = null;
+  const refresh = () => {
+    if (!vp) return;
+    const k = prev.clientWidth / vp.width, [vert, hor] = st.pos.split('-'), m = st.margin * k;
+    const i = cur - 1, hidden = (st.skipFirst && i === 0) || (st.onlySel && sel && !sel.includes(i));
+    tag.textContent = hidden ? '' : fmtText(i);
+    tag.style.cssText = `font-size:${st.size * k}px;` + (vert === 'top' ? `top:${m}px;` : `bottom:${m}px;`) +
+      (hor === 'left' ? `left:${m}px;` : hor === 'right' ? `right:${m}px;` : 'left:50%;transform:translateX(-50%);');
+  };
+  S.pdf.getPage(cur).then(async (pg) => {
+    vp = pg.getViewport({ scale: 1 }); const k = 260 / vp.width, v = pg.getViewport({ scale: k * 2 });
+    cv.width = v.width; cv.height = v.height; prev.style.width = '260px'; prev.style.aspectRatio = vp.width + ' / ' + vp.height;
+    await pg.render({ canvasContext: cv.getContext('2d'), viewport: v }).promise; refresh();
+  });
+  const radios = new Map(), cards = el('div', { class: 'numStyles' });
+  const custom = el('input', { type: 'text', value: st.format, 'aria-label': 'Custom format' });
+  const pickStyle = (f) => { st.format = f; custom.value = f; radios.forEach((b, k) => b.classList.toggle('on', k === f)); refresh(); };
+  NUMBER_STYLES.forEach(([f, ex]) => { const b = el('button', { type: 'button', class: 'numCard', 'data-fmt': f, onclick: () => pickStyle(f) }, el('b', {}, ex)); radios.set(f, b); cards.append(b); });
+  custom.addEventListener('input', () => { st.format = custom.value; radios.forEach((b, k) => b.classList.toggle('on', k === st.format)); refresh(); });
+  const grid = el('div', { class: 'numGrid', role: 'radiogroup', 'aria-label': 'Position' }), cells = new Map();
+  [['top-left', 'Top left'], ['top-center', 'Top center'], ['top-right', 'Top right'], ['bottom-left', 'Bottom left'], ['bottom-center', 'Bottom center'], ['bottom-right', 'Bottom right']].forEach(([v, t]) => {
+    const c = el('button', { type: 'button', class: 'numCell', title: t, 'aria-label': t, 'data-pos': v, onclick: () => { st.pos = v; cells.forEach((x, k) => x.classList.toggle('on', k === v)); refresh(); } });
+    cells.set(v, c); grid.append(c);
+  });
+  const slider = (min, max, key, unit) => {
+    const out = el('output', {}, st[key] + ' ' + unit), r = el('input', { type: 'range', min, max, value: st[key], 'aria-label': key });
+    r.addEventListener('input', () => { st[key] = +r.value; out.textContent = r.value + ' ' + unit; refresh(); });
+    return el('div', { class: 'sl' }, r, out);
+  };
+  const start = numInput(1, 0, 9999); start.addEventListener('input', () => { st.start = Math.max(0, Math.floor(+start.value) || 0); refresh(); });
+  const skip = el('input', { type: 'checkbox' }); skip.addEventListener('change', () => { st.skipFirst = skip.checked; refresh(); });
+  const only = el('input', { type: 'checkbox' }); only.addEventListener('change', () => { st.onlySel = only.checked; refresh(); });
+  pickStyle(st.format); cells.get(st.pos).classList.add('on');
+  const body = el('div', { class: 'numDlg' },
+    el('div', { class: 'stack' },
+      field('Style', cards), field('Custom format', custom, '{n} = page number, {N} = total pages'),
+      field('Position', grid), field('Font size', slider(6, 30, 'size', 'pt')), field('Distance from edge', slider(10, 72, 'margin', 'pt')),
+      el('div', { class: 'grid2' }, field('First number', start)),
+      el('label', { class: 'chk' }, skip, 'Skip the first page (for example a cover)'),
+      sel ? el('label', { class: 'chk' }, only, 'Only the ' + sel.length + ' selected pages') : null),
+    el('div', { class: 'numSide' }, el('span', { class: 'muted' }, 'Preview, page ' + cur), prev));
+  modal({ title: 'Insert page numbers', wide: true, body, actions: [{ label: 'Cancel' }, { label: 'Insert', primary: true, onClick: () => {
+    guard(async () => commit(await ops.numberPages(S.bytes, { format: st.format, pos: st.pos, size: st.size, margin: st.margin, start: st.start, skipFirst: st.skipFirst, only: st.onlySel && sel ? sel : null }), clone(S.ann)));
+  } }] });
+  requestAnimationFrame(refresh);
 }
 
 async function renderJpeg(rec, scale, q) {

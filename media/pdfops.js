@@ -96,9 +96,10 @@ export async function crop(bytes, { top = 0, right = 0, bottom = 0, left = 0 }, 
 
 const POS = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
 export const NUMBER_POSITIONS = POS;
-export async function numberPages(bytes, { format = '{n}', pos = 'bottom-center', size = 10, margin = 24, start = 1 } = {}) {
+export async function numberPages(bytes, { format = '{n}', pos = 'bottom-center', size = 10, margin = 24, start = 1, skipFirst = false, only = null } = {}) {
   const doc = await load(bytes), font = await doc.embedFont(StandardFonts.Helvetica), pages = doc.getPages(), N = pages.length;
   pages.forEach((p, i) => {
+    if ((skipFirst && i === 0) || (only && !only.includes(i))) return;
     const text = format.replace(/\{n\}/g, String(start + i)).replace(/\{N\}/g, String(N + start - 1)).replace(/[^\x20-\x7E\xA0-\xFF]/g, '?');
     const b = p.getCropBox() || p.getMediaBox(), w = font.widthOfTextAtSize(text, size);
     const r = ((p.getRotation().angle % 360) + 360) % 360;
