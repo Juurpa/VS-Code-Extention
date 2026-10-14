@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2
+- German interface (follows the VS Code language; English fallback): viewer, dialogs, messages, commands and settings.
+- Signatures and redaction areas: small × button on hover and the Delete key; redaction areas can be moved and resized; the eraser hint mentions signatures.
+- New "Insert page numbers" dialog: styles with examples, position grid, live preview on the real page, size and distance sliders, skip first page, selected pages only.
+- Fixed the repository address so the README images resolve in the Marketplace page.
+- Donation link (Buy Me a Coffee).
+
 ## 0.8.1
 - Renamed from "Werkbank" to "PDF Workbench": commands and settings `pdfWorkbench.*`, data folder `_pdf-workbench`, variables `PDF_WORKBENCH_ROOT` / `PDF_WORKBENCH_DATA` (the old `WERKBANK_*` variables are still read by the MCP server).
 - Windows fixes: a `.mcp.json` that points to an old extension folder is detected at startup and can be repaired with one click ("Connection closed" had no visible cause); clear message for a missing `file` argument; `pdf_info` groups equal page sizes; `pdf_read_text` no longer contains the control character U+0002 (hyphen); harmless pdf.js start-up warning no longer logged; OCR timing in the tool description corrected.
