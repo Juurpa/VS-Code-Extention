@@ -13,12 +13,17 @@ import { comparePdfs, reportMarkdown } from './compare.mjs';
 const ROOT = path.resolve(process.env.PDF_WORKBENCH_ROOT || process.env.WERKBANK_ROOT || process.cwd());
 const DATA = process.env.PDF_WORKBENCH_DATA || process.env.WERKBANK_DATA || '_pdf-workbench';
 
+const outside = (base, target) => { const r = path.relative(base, target); return r === '..' || r.startsWith('..' + path.sep) || path.isAbsolute(r); };
 function safe(p) {
   const abs = path.resolve(ROOT, String(p));
-  const rel = path.relative(ROOT, abs);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`"${p}" is outside the working folder (${ROOT}).`);
+  if (outside(ROOT, abs)) throw new Error(`"${p}" is outside the working folder (${ROOT}).`);
+  // A link inside the working folder must not lead out of it: the nearest existing parent has to stay inside.
+  let probe = abs; while (!fs.existsSync(probe)) { const up = path.dirname(probe); if (up === probe) break; probe = up; }
+  if (outside(fs.realpathSync(ROOT), fs.realpathSync(probe))) throw new Error(`"${p}" leads out of the working folder through a link.`);
   return abs;
 }
+// New files must have the expected type, so a tool cannot be used to create arbitrary files (scripts, settings, ...)
+const needExt = (name, ext) => { if (name && !String(name).toLowerCase().endsWith('.' + ext)) throw new Error(`The name of the new file must end with .${ext}.`); };
 const readPdf = (p) => { if (p === undefined || p === null || p === '') throw new Error('Missing argument "file": path of the PDF, relative to the working folder.'); const a = safe(p); if (!fs.existsSync(a)) throw new Error(`File not found: ${p}`); return new Uint8Array(fs.readFileSync(a)); };
 // Consecutive pages of equal size and rotation become one entry (a 26-page book would otherwise list 26 identical objects).
 function groupSizes(sizes) {
@@ -32,7 +37,7 @@ function groupSizes(sizes) {
 }
 const rel = (a) => path.relative(ROOT, a).split(path.sep).join('/');
 function freeName(file, suffix, out) {
-  if (out) { const a = safe(out); if (fs.existsSync(a)) throw new Error(`"${out}" already exists. Choose another name – existing files are never overwritten.`); return a; }
+  if (out) { needExt(out, 'pdf'); const a = safe(out); if (fs.existsSync(a)) throw new Error(`"${out}" already exists. Choose another name – existing files are never overwritten.`); return a; }
   const base = safe(file).replace(/\.pdf$/i, '');
   let n = 0, cand;
   do { cand = `${base}_${suffix}${n ? '_' + (n + 1) : ''}.pdf`; n++; } while (fs.existsSync(cand));
@@ -122,8 +127,8 @@ const TOOLS = [
       const res = await comparePdfs(readPdf(a.file_old), readPdf(a.file_new));
       const md = reportMarkdown(res, path.basename(String(a.file_old)), path.basename(String(a.file_new)));
       let target;
-      if (a.out) { target = safe(a.out); if (fs.existsSync(target)) throw new Error(`"${a.out}" already exists. Choose another name – existing files are never overwritten.`); }
-      else { const base = safe(a.file_old).replace(/.pdf$/i, ''); let n = 0; do { target = `${base}_compare${n ? '_' + (n + 1) : ''}.md`; n++; } while (fs.existsSync(target)); }
+      if (a.out) { needExt(a.out, 'md'); target = safe(a.out); if (fs.existsSync(target)) throw new Error(`"${a.out}" already exists. Choose another name – existing files are never overwritten.`); }
+      else { const base = safe(a.file_old).replace(/\.pdf$/i, ''); let n = 0; do { target = `${base}_compare${n ? '_' + (n + 1) : ''}.md`; n++; } while (fs.existsSync(target)); }
       const report = write(target, Buffer.from(md, 'utf8'));
       let left = 150;
       const pages = res.pages.filter((p) => p.status !== 'same').map((p) => { const changes = p.changes.slice(0, Math.max(0, left)); left -= changes.length; return { ...p, changes, ...(changes.length < p.changes.length ? { more_in_report: p.changes.length - changes.length } : {}) }; });
