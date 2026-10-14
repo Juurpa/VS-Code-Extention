@@ -48,6 +48,7 @@ export const ICONS = {
   form: 'M5 3h14v18H5zM8 7h5M8 12h3M8 17h6M15 11l1.5 1.5L19 10',
   metadata: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5h.01',
   rotate: 'M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5',
+  rotateLeft: 'M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5',
   extract: 'M5 3h9l4 4v5M5 3v18h8M14 17h8M19 14l3 3-3 3',
   reorder: 'M8 4v16M5 7l3-3 3 3M16 20V4M13 17l3 3 3-3',
   insertPage: 'M6 3h8l5 5v13H6zM14 3v5h5M12.5 13v5M10 15.5h5',

@@ -1,5 +1,6 @@
 // Shared state and small UI helpers
 import { t } from './i18n.js';
+import { ICONS } from './icons.js';
 export const S = {
   pdf: null, bytes: null, name: '', fp: '', zoom: 1, tool: 'select',
   hlColor: '#fff176', penColor: '#e53935', penW: 3,
@@ -57,7 +58,9 @@ export const IC = {
   menu: 'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z',
   note: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z'
 };
-export const icon = (n) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n] || ''}"/></svg>`;
+export const icon = (n) => (ICONS[n]
+  ? `<svg class="si" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[n]}"/></svg>`
+  : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n] || ''}"/></svg>`);
 export function fillIcons(root = document) {
   $$('[data-i]', root).forEach((e) => { if (!e.firstChild) e.innerHTML = icon(e.dataset.i); });
 }

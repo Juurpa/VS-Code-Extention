@@ -14,6 +14,8 @@ module.exports = `
   <button class="tb" data-tool="draw" title="Draw (D)"><span class="ic" data-i="pen"></span><span class="lbl">Draw</span></button>
   <button class="tb" data-tool="erase" title="Eraser (E)"><span class="ic" data-i="eraser"></span><span class="lbl">Eraser</span></button>
   </div>
+  <div class="sep" id="quickSep" hidden></div>
+  <div class="grp" id="quick" hidden></div>
   <div class="sep"></div>
   <button class="tb icon" id="tUndo" title="Undo (Ctrl+Z)" disabled><span class="ic" data-i="undo"></span></button>
   <button class="tb icon" id="tRedo" title="Redo (Ctrl+Y)" disabled><span class="ic" data-i="redo"></span></button>

@@ -67,7 +67,7 @@ class PdfEditorProvider {
               const [a, b] = await Promise.all([vscode.workspace.fs.stat(textUri), vscode.workspace.fs.stat(uri)]);
               hasText = a.mtime >= b.mtime;
             }
-            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('pdfWorkbench.sig') || null, ai: aiInfo(panel.webview, mediaUri) });
+            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('pdfWorkbench.sig') || null, quick: this.ctx.globalState.get('pdfWorkbench.quick') || [], ai: aiInfo(panel.webview, mediaUri) });
             break;
           }
           case 'saveAnn':
@@ -93,6 +93,7 @@ class PdfEditorProvider {
             break;
           }
           case 'saveSig': await this.ctx.globalState.update('pdfWorkbench.sig', msg.png); break;
+          case 'saveQuick': await this.ctx.globalState.update('pdfWorkbench.quick', Array.isArray(msg.ids) ? msg.ids.filter((x) => typeof x === 'string').slice(0, 20) : []); break;
           case 'pickPdfs': {
             const picked = await vscode.window.showOpenDialog({ canSelectMany: !!msg.multi, filters: { PDF: ['pdf'] }, defaultUri: vscode.Uri.file(path.dirname(uri.fsPath)), openLabel: vscode.l10n.t('Select') });
             const files = [];

@@ -178,3 +178,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .sl{display:flex;align-items:center;gap:10px}.sl input{flex:1}.sl output{min-width:48px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
 .chk{display:flex;gap:8px;align-items:center}
 @media (max-width:640px){.numDlg{grid-template-columns:1fr}.numSide{position:static}}
+
+.ic svg.si,.noteMark svg.si,.mic svg.si,.pinBtn svg.si,.quickBtn svg.si,.tb svg.si{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.quickBtn svg,.mic svg,.pinBtn svg,.tb.icon svg{width:18px;height:18px;display:block}
+.quickBtn.dragging{opacity:.4}
+#quick{display:flex;gap:2px;align-items:center}
+.quickBtn.active{background:var(--accent);color:var(--on-accent)}
+.mi{display:flex;align-items:center;gap:10px}.mic{display:inline-flex;width:18px;height:18px;flex:none;opacity:.85}
+.miRow{display:flex;align-items:center}.miRow .mi{flex:1;min-width:0}
+.pinBtn{border:0;background:transparent;color:var(--muted);width:30px;height:30px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;opacity:.55;flex:none}
+.miRow:hover .pinBtn,.pinBtn:focus-visible,.pinBtn.on{opacity:1}.pinBtn:hover{background:var(--pill)}.pinBtn.on{color:var(--accent)}
+.pinBtn.on svg{fill:currentColor}

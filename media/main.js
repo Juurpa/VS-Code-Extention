@@ -72,7 +72,7 @@ async function start() {
   try {
     const [buf, init] = await Promise.all([fetch(cfg.pdfUri).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }), initP]);
     S.bytes = new Uint8Array(buf).slice();
-    S.ann = init.ann || {}; S.sig = init.sig || null; applyAi(init.ai);
+    S.ann = init.ann || {}; S.sig = init.sig || null; S.quick = Array.isArray(init.quick) ? init.quick : []; renderQuick(); applyAi(init.ai);
     await loadDoc();
     showMsg('');
     fitWidth(true);
@@ -364,9 +364,18 @@ $$('[data-tool]').forEach((b) => b.addEventListener('click', () => setTool(b.dat
 
 // Menu
 function hideMenu() { $('#menuPop').hidden = true; }
+S.quick = [];
 function showMenu(x, y, items) {
   const m = $('#menuPop');
-  m.replaceChildren(...items.map((it) => it === '-' ? el('div', { class: 'msep' }) : el('button', { class: 'mi', disabled: !!it.d, onclick: () => { hideMenu(); it.f && it.f(); } }, el('span', {}, it.l), it.k ? el('small', {}, it.k) : '')));
+  const row = (it) => {
+    if (it === '-') return el('div', { class: 'msep' });
+    const b = el('button', { class: 'mi', disabled: !!it.d, onclick: () => { hideMenu(); it.f && it.f(); } }, it.ic ? el('span', { class: 'mic', html: icon(it.ic) }) : null, el('span', {}, it.l), it.k ? el('small', {}, it.k) : '');
+    if (!it.pin) return b;
+    const on = S.quick.includes(it.pin), tip = on ? t('Remove from quick bar') : t('Pin to quick bar');
+    const p = el('button', { class: 'pinBtn' + (on ? ' on' : ''), type: 'button', title: tip, 'aria-label': tip, 'aria-pressed': String(on), html: icon('pin'), onclick: (e) => { e.stopPropagation(); toggleQuick(it.pin); showMenu(x, y, items); } });
+    return el('div', { class: 'miRow' }, b, p);
+  };
+  m.replaceChildren(...items.map(row));
   m.hidden = false; m.scrollTop = 0; m.style.left = Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8)) + 'px'; m.style.top = Math.max(8, Math.min(y, innerHeight - m.offsetHeight - 8)) + 'px';
 }
 
@@ -513,20 +522,49 @@ async function reportDialog(kind) {
 window.addEventListener('error', (e) => post({ type: 'jsError', message: String(e.message || '').slice(0, 300) }));
 window.addEventListener('unhandledrejection', (e) => post({ type: 'jsError', message: String(e.reason?.message || e.reason || '').slice(0, 300) }));
 
+// ------------------------------------------------------------ Tools: registry, menu, quick bar
+const toolDefs = () => [
+  { id: 'merge', ic: 'merge', l: t('Merge PDFs …'), f: mergeDialog },
+  { id: 'split', ic: 'split', l: t('Split PDF …'), f: splitDialog },
+  { id: 'insert', ic: 'insertPage', l: t('Insert pages from PDF …'), f: () => insertFrom(S.cur) },
+  { id: 'crop', ic: 'crop', l: t('Crop pages …'), f: cropDialog },
+  { id: 'number', ic: 'number', l: t('Insert page numbers …'), f: numberDialog },
+  { id: 'ocr', ic: 'ocr', l: t('Text recognition (OCR) …'), f: () => ocrDialog().catch((e) => toast('Error: ' + (e.message || e), 6000)) },
+  { id: 'compress', ic: 'compress', l: t('Compress …'), f: compressDialog },
+  { id: 'redact', ic: 'redact', l: t('Redact'), tool: 'redact', f: () => setTool('redact') },
+  { id: 'sign', ic: 'sign', l: t('Place signature'), tool: 'sign', f: () => setTool('sign') }
+];
+const toolItem = (d) => ({ l: d.l, ic: d.ic, pin: d.id, f: d.f });
+function saveQuick() { post({ type: 'saveQuick', ids: S.quick }); }
+function toggleQuick(id) { S.quick = S.quick.includes(id) ? S.quick.filter((x) => x !== id) : [...S.quick, id]; renderQuick(); saveQuick(); }
+function renderQuick() {
+  const q = $('#quick'), defs = toolDefs(), list = S.quick.map((id) => defs.find((d) => d.id === id)).filter(Boolean);
+  q.replaceChildren(...list.map((d) => {
+    const b = el('button', { class: 'tb icon quickBtn', type: 'button', 'data-quick': d.id, title: t('{name} (right-click to unpin)', { name: d.l.replace(/ …$/, '') }), 'aria-label': d.l.replace(/ …$/, ''), draggable: 'true', html: icon(d.ic), onclick: () => d.f() });
+    if (d.tool) b.dataset.tool = d.tool;
+    b.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleQuick(d.id); });
+    b.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', d.id); e.dataTransfer.effectAllowed = 'move'; b.classList.add('dragging'); });
+    b.addEventListener('dragend', () => b.classList.remove('dragging'));
+    b.addEventListener('dragover', (e) => e.preventDefault());
+    b.addEventListener('drop', (e) => {
+      e.preventDefault(); const from = e.dataTransfer.getData('text/plain'); if (!from || from === d.id) return;
+      const arr = S.quick.filter((x) => x !== from); arr.splice(arr.indexOf(d.id), 0, from); S.quick = arr; renderQuick(); saveQuick();
+    });
+    b.classList.toggle('active', !!d.tool && d.tool === S.tool);
+    return b;
+  }));
+  q.hidden = !list.length; $('#quickSep').hidden = !list.length;
+}
+S.api.renderQuick = renderQuick;
+
 // ------------------------------------------------------------ Tools menu, saving
 $('#tTools').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
+  const d = Object.fromEntries(toolDefs().map((x) => [x.id, toolItem(x)]));
   showMenu(r.left, r.bottom + 4, [
-    { l: t('Merge PDFs …'), f: mergeDialog },
-    { l: t('Split PDF …'), f: splitDialog },
-    { l: t('Insert pages from PDF …'), f: () => insertFrom(S.cur) },
-    { l: t('Crop pages …'), f: cropDialog },
-    { l: t('Insert page numbers …'), f: numberDialog },
-    { l: t('Text recognition (OCR) …'), f: () => ocrDialog().catch((e) => toast('Error: ' + (e.message || e), 6000)) },
-    { l: t('Compress …'), f: compressDialog },
+    d.merge, d.split, d.insert, d.crop, d.number, d.ocr, d.compress,
     '-',
-    { l: t('Redact'), f: () => setTool('redact') },
-    { l: t('Place signature'), f: () => setTool('sign') },
+    d.redact, d.sign,
     '-',
     { l: t('Report a problem …'), f: () => reportDialog('bug') },
     { l: t('Send feedback …'), f: () => reportDialog('praise') },

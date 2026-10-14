@@ -1,5 +1,8 @@
 // German strings for media/main.js, media/util.js and template.js
 export default {
+  'Pin to quick bar': 'An Schnellleiste anheften',
+  'Remove from quick bar': 'Aus Schnellleiste entfernen',
+  '{name} (right-click to unpin)': '{name} (Rechtsklick zum Entfernen)',
   // template.js (title, aria-label, .lbl)
   'Sidebar': 'Seitenleiste',
   'Page': 'Seite',

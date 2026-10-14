@@ -1,6 +1,6 @@
 // Page tools: selection, context menu, reordering, merging, splitting, compressing, cropping, page numbers
 import * as ops from './pdfops.js';
-import { S, $, $$, el, modal, toast } from './util.js';
+import { S, $, $$, el, modal, toast, icon } from './util.js';
 import { t } from './i18n.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -290,10 +290,10 @@ export function initPages() {
   S.api.decorateThumb = decorateThumb; S.api.markSel = markSel; S.api.updateDirty = updateDirty;
   $('#selBar').append(
     el('span', { id: 'selCount', class: 'muted' }),
-    el('button', { class: 'tb icon', title: t('Rotate left'), onclick: () => rotateSel(-90) }, '↺'),
-    el('button', { class: 'tb icon', title: t('Rotate right'), onclick: () => rotateSel(90) }, '↻'),
-    el('button', { class: 'tb icon', title: t('Delete (Del)'), onclick: deleteSel, html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>' }),
-    el('button', { class: 'tb icon', title: t('Extract as new PDF'), onclick: extractSel, html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>' }));
+    el('button', { class: 'tb icon', title: t('Rotate left'), onclick: () => rotateSel(-90), html: icon('rotateLeft') }),
+    el('button', { class: 'tb icon', title: t('Rotate right'), onclick: () => rotateSel(90), html: icon('rotate') }),
+    el('button', { class: 'tb icon', title: t('Delete (Del)'), onclick: deleteSel, html: icon('trash') }),
+    el('button', { class: 'tb icon', title: t('Extract as new PDF'), onclick: extractSel, html: icon('extract') }));
   document.addEventListener('keydown', (e) => {
     const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable;
     if (typing) return;
