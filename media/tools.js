@@ -11,7 +11,9 @@ const redCount = () => Object.values(S.red).reduce((a, r) => a + r.length, 0);
 export function drawRed(rec) {
   const list = S.red[rec.n] || [];
   rec.redDiv.replaceChildren(...list.map((r, i) => {
-    const d = el('div', { class: 'redBox', title: 'Click to remove', onclick: (e) => { if (S.tool !== 'redact') return; e.stopPropagation(); list.splice(i, 1); if (!list.length) delete S.red[rec.n]; drawRed(rec); S.api.renderToolOpts(); } });
+    const remove = () => { list.splice(i, 1); if (!list.length) delete S.red[rec.n]; drawRed(rec); S.api.renderToolOpts(); };
+    const d = el('div', { class: 'redBox', title: 'Redaction area' },
+      el('button', { class: 'boxDel', type: 'button', title: 'Remove area (Del)', 'aria-label': 'Remove area', html: '&times;', onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); if (S.tool === 'redact') remove(); } }));
     d.style.cssText = `left:${r[0] * 100}%;top:${r[1] * 100}%;width:${r[2] * 100}%;height:${r[3] * 100}%`; return d;
   }));
 }
@@ -87,7 +89,11 @@ export function signatureDialog(then) {
 // Signature element on the page (movable, resize via the corner)
 export function makeSigEl(n, s) {
   const box = el('div', { class: 'sigMark', 'data-ann': s.id, 'data-kind': 'sigs', 'data-page': n, title: 'Drag to move, corner to resize; eraser removes' });
-  const img = el('img', { src: s.img, draggable: false }); const handle = el('i', { class: 'sigHandle' }); box.append(img, handle);
+  const img = el('img', { src: s.img, draggable: false }); const handle = el('i', { class: 'sigHandle' });
+  const del = el('button', { class: 'boxDel', type: 'button', title: 'Remove signature (Del)', 'aria-label': 'Remove signature', html: '&times;' });
+  del.addEventListener('pointerdown', (e) => e.stopPropagation());
+  del.addEventListener('click', (e) => { e.stopPropagation(); S.api.removeItem('sigs', n, s.id); });
+  box.append(img, handle, del);
   const place = () => { box.style.cssText = `left:${s.x * 100}%;top:${s.y * 100}%;width:${s.w * 100}%;height:${s.h * 100}%`; };
   place();
   const pageEl = () => box.closest('.page');
@@ -109,7 +115,7 @@ export function makeSigEl(n, s) {
 }
 
 function placeSignature(e) {
-  if (S.tool !== 'sign' || !S.sig) return;
+  if (S.tool !== 'sign' || !S.sig || e.target.closest('.sigMark')) return;
   const pe = e.target.closest('.page'); if (!pe) return;
   const b = pe.getBoundingClientRect(), n = +pe.dataset.page, im = new Image();
   im.onload = () => {
@@ -160,5 +166,11 @@ export function initTools() {
   };
   viewer.addEventListener('pointerup', end); viewer.addEventListener('pointercancel', end);
   viewer.addEventListener('click', placeSignature);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Delete' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = e.target.tagName; if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+    const sg = viewer.querySelector('.sigMark:hover'); if (sg) { e.preventDefault(); S.api.removeItem('sigs', +sg.dataset.page, sg.dataset.ann); return; }
+    const rb = S.tool === 'redact' && viewer.querySelector('.redBox:hover .boxDel'); if (rb) { e.preventDefault(); rb.click(); }
+  });
   S.api.toolOptsExt = toolOpts;
 }

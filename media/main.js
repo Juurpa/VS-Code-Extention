@@ -348,7 +348,7 @@ function renderToolOpts() {
     o.append(el('span', {}, t === 'hl' ? 'Select text to highlight:' : 'Color:'));
     cols.forEach((c) => o.append(el('button', { class: 'swatch' + (c === cur ? ' on' : ''), style: `background:${c}`, onclick: () => { if (t === 'hl') S.hlColor = c; else S.penColor = c; renderToolOpts(); } })));
     if (t === 'draw') { o.append(el('span', {}, 'Width')); const r = el('input', { type: 'range', min: 1, max: 12, value: S.penW }); r.oninput = () => { S.penW = +r.value; }; o.append(r); }
-  } else if (t === 'erase') o.append(el('span', {}, 'Click or drag over a highlight, drawing or comment.'));
+  } else if (t === 'erase') o.append(el('span', {}, 'Click or drag over a highlight, drawing, comment or signature.'));
   else if (t === 'note') o.append(el('span', {}, 'Click on the page to add a comment.'));
   else S.api.toolOptsExt?.(t, o);
   o.hidden = !o.childElementCount;
@@ -535,7 +535,7 @@ $('#tFile').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, [{ l: 'Save (overwrite file)', f: saveFile }, { l: 'Save as …', f: saveAs }]);
 };
-Object.assign(S.api, { reload, request, post, showMenu, goTo, flushAnn, saveAnn, getAllTexts, updateUndo, renderToolOpts, addItem, setTool });
+Object.assign(S.api, { reload, request, post, showMenu, goTo, flushAnn, saveAnn, getAllTexts, updateUndo, renderToolOpts, addItem, removeItem, setTool });
 initPages(); initTools();
 S.tool = 'none'; setTool('select');
 window.__pdfWorkbench = { S, getAllTexts };
