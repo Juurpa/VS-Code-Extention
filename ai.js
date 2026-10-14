@@ -27,33 +27,33 @@ function registerProvider(p) {
 
 async function openClaude(promptText) {
   await vscode.env.clipboard.writeText(promptText);
-  if (!cfg().get('openClaudeAfterPrompt')) { vscode.window.showInformationMessage('Prompt copied. Paste it into Claude Code (Ctrl+V).'); return; }
+  if (!cfg().get('openClaudeAfterPrompt')) { vscode.window.showInformationMessage(vscode.l10n.t('Prompt copied. Paste it into Claude Code (Ctrl+V).')); return; }
   const all = await vscode.commands.getCommands(true);
   const candidates = ['claude-vscode.sidebar.open', 'claude-vscode.editor.open', 'claude-vscode.focus', 'claude-vscode.sidebar.focus'];
   const found = candidates.find((c) => all.includes(c)) || all.find((c) => /^claude(-vscode)?\..*(open|focus)/i.test(c));
   if (found) {
-    try { await vscode.commands.executeCommand(found); vscode.window.showInformationMessage('Prompt copied. Paste it into Claude Code with Ctrl+V and send it.'); return; } catch (e) { /* continue */ }
+    try { await vscode.commands.executeCommand(found); vscode.window.showInformationMessage(vscode.l10n.t('Prompt copied. Paste it into Claude Code with Ctrl+V and send it.')); return; } catch (e) { /* continue */ }
   }
-  vscode.window.showWarningMessage('Prompt copied. Claude Code was not found. Install the “Claude Code” extension or paste the prompt there (Ctrl+V).');
+  vscode.window.showWarningMessage(vscode.l10n.t('Prompt copied. Claude Code was not found. Install the “Claude Code” extension or paste the prompt there (Ctrl+V).'));
 }
 
 function registerBuiltins(ctx) {
   registerProvider({
-    id: 'claude-code', label: 'Claude Code (VS Code)', shortName: 'Claude', icon: 'icons/ai.png', description: 'Uses your Claude subscription. Claude reads the files in the project itself.',
+    id: 'claude-code', label: 'Claude Code (VS Code)', shortName: 'Claude', icon: 'icons/ai.png', description: vscode.l10n.t('Uses your Claude subscription. Claude reads the files in the project itself.'),
     inline: false, run: async (prompt) => { await openClaude(prompt); }
   });
   registerProvider({
-    id: 'zwischenablage', label: 'Copy only', shortName: 'KI', description: 'Copies the prompt including the text; you paste it into any AI.',
+    id: 'zwischenablage', label: vscode.l10n.t('Copy only'), shortName: 'KI', description: vscode.l10n.t('Copies the prompt including the text; you paste it into any AI.'),
     inline: true, handoff: true,
-    run: async (prompt) => { await vscode.env.clipboard.writeText(prompt); vscode.window.showInformationMessage('Prompt with text copied. Paste it into your AI (Ctrl+V).'); }
+    run: async (prompt) => { await vscode.env.clipboard.writeText(prompt); vscode.window.showInformationMessage(vscode.l10n.t('Prompt with text copied. Paste it into your AI (Ctrl+V).')); }
   });
   registerProvider({
-    id: 'openai', label: 'OpenAI-compatible interface', shortName: 'KI', description: 'Endpoint, model and key are set in the settings. Also works with Ollama (local, free).',
+    id: 'openai', label: vscode.l10n.t('OpenAI-compatible interface'), shortName: 'KI', description: vscode.l10n.t('Endpoint, model and key are set in the settings. Also works with Ollama (local, free).'),
     inline: true,
     run: async (prompt, { signal }) => {
       const base = String(cfg().get('ai.endpoint') || '').replace(/\/+$/, '');
       const model = cfg().get('ai.model');
-      if (!base || !model) throw Object.assign(new Error('This AI still needs an endpoint and a model. Enter them in the settings or choose another AI.'), { code: 'CONFIG' });
+      if (!base || !model) throw Object.assign(new Error(vscode.l10n.t('This AI still needs an endpoint and a model. Enter them in the settings or choose another AI.')), { code: 'CONFIG' });
       const key = await ctx.secrets.get(SECRET_KEY);
       const headers = { 'Content-Type': 'application/json' };
       if (key) headers.Authorization = 'Bearer ' + key;
@@ -61,10 +61,10 @@ function registerBuiltins(ctx) {
         method: 'POST', headers, signal,
         body: JSON.stringify({ model, messages: [{ role: 'system', content: 'You are a study assistant. Answer in English, use only the given text and cite page numbers.' }, { role: 'user', content: prompt }] })
       });
-      if (!res.ok) throw new Error(`AI request failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+      if (!res.ok) throw new Error(vscode.l10n.t('AI request failed ({0}): {1}', res.status, (await res.text()).slice(0, 300)));
       const j = await res.json();
       const out = j.choices?.[0]?.message?.content;
-      if (!out) throw new Error('Empty response from the AI.');
+      if (!out) throw new Error(vscode.l10n.t('Empty response from the AI.'));
       return out;
     }
   });
@@ -81,7 +81,7 @@ async function runTask(ctx, kind, { relPdf, dataFolder, page, selection, count, 
 
   const max = Math.max(5000, +cfg().get('ai.maxChars') || 60000);
   let text = await readIfExists(textUri), marks = await readIfExists(marksUri);
-  if (!text) { vscode.window.showWarningMessage('The PDF text has not been stored yet. Wait a moment and try again.'); return; }
+  if (!text) { vscode.window.showWarningMessage(vscode.l10n.t('The PDF text has not been stored yet. Wait a moment and try again.')); return; }
   if (kind === 'summary-page' && page) { // only the requested page
     const m = text.split(/\n(?=#+\s*(?:Seite|Page)\s+\d+)/i).find((s) => new RegExp('^#+\\s*(?:Seite|Page)\\s+' + page + '\\b', 'i').test(s));
     if (m) text = m;
@@ -91,7 +91,7 @@ async function runTask(ctx, kind, { relPdf, dataFolder, page, selection, count, 
   if (p.handoff) { await p.run(full, { kind }); return; }
 
   const ac = new AbortController();
-  const out = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `PDF Workbench: ${p.label} is working …`, cancellable: true }, async (_pg, tok) => {
+  const out = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: vscode.l10n.t('PDF Workbench: {0} is working …', p.label), cancellable: true }, async (_pg, tok) => {
     tok.onCancellationRequested(() => ac.abort());
     return await p.run(full, { kind, signal: ac.signal });
   });
@@ -111,15 +111,15 @@ async function runTask(ctx, kind, { relPdf, dataFolder, page, selection, count, 
 async function pickProvider() {
   const cur = cfg().get('ai.provider') || 'claude-code';
   const items = [...providers.values()].map((p) => ({ label: (p.id === cur ? '$(check) ' : '') + p.label, description: p.id, detail: p.description, id: p.id }));
-  const sel = await vscode.window.showQuickPick(items, { title: 'Choose the AI for PDF Workbench' });
+  const sel = await vscode.window.showQuickPick(items, { title: vscode.l10n.t('Choose the AI for PDF Workbench') });
   if (sel) await cfg().update('ai.provider', sel.id, vscode.ConfigurationTarget.Global);
 }
 
 async function setApiKey(ctx) {
-  const v = await vscode.window.showInputBox({ title: 'API key (stored securely in the VS Code keychain)', password: true, ignoreFocusOut: true, prompt: 'Leave empty and confirm to delete the key. Ollama does not need one.' });
+  const v = await vscode.window.showInputBox({ title: vscode.l10n.t('API key (stored securely in the VS Code keychain)'), password: true, ignoreFocusOut: true, prompt: vscode.l10n.t('Leave empty and confirm to delete the key. Ollama does not need one.') });
   if (v === undefined) return;
-  if (v) { await ctx.secrets.store(SECRET_KEY, v); vscode.window.showInformationMessage('Key saved.'); }
-  else { await ctx.secrets.delete(SECRET_KEY); vscode.window.showInformationMessage('Key deleted.'); }
+  if (v) { await ctx.secrets.store(SECRET_KEY, v); vscode.window.showInformationMessage(vscode.l10n.t('Key saved.')); }
+  else { await ctx.secrets.delete(SECRET_KEY); vscode.window.showInformationMessage(vscode.l10n.t('Key deleted.')); }
 }
 
 /** Name and icon of the selected AI for the UI. */
@@ -128,7 +128,7 @@ function describe() {
   let name = (p && (p.shortName || p.label)) || id, icon = (p && p.icon) || null;
   if (id === 'openai') {
     const ep = String(cfg().get('ai.endpoint') || ''), model = String(cfg().get('ai.model') || '');
-    name = /generativelanguage|gemini/i.test(ep + model) ? 'Gemini' : /11434|ollama/i.test(ep) ? 'Ollama' : /openai\.com/i.test(ep) ? 'OpenAI' : /anthropic/i.test(ep) ? 'Claude' : /openrouter/i.test(ep) ? 'OpenRouter' : /localhost|127\.0\.0\.1|1234/.test(ep) ? 'Local AI' : (model || 'KI');
+    name = /generativelanguage|gemini/i.test(ep + model) ? 'Gemini' : /11434|ollama/i.test(ep) ? 'Ollama' : /openai\.com/i.test(ep) ? 'OpenAI' : /anthropic/i.test(ep) ? 'Claude' : /openrouter/i.test(ep) ? 'OpenRouter' : /localhost|127\.0\.0\.1|1234/.test(ep) ? vscode.l10n.t('Local AI') : (model || 'KI');
   }
   return { id, name, icon };
 }

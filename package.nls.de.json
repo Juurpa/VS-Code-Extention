@@ -1,0 +1,20 @@
+{
+  "customEditor.displayName": "PDF Workbench",
+  "cmd.setupClaudeMd.title": "PDF Workbench: Claude-Code-Hinweis in CLAUDE.md eintragen",
+  "cmd.setupMcp.title": "PDF Workbench: PDF-Werkzeuge für KI einrichten (MCP)",
+  "cmd.revealData.title": "PDF Workbench: Ordner mit Texten und Markierungen anzeigen",
+  "cmd.chooseAi.title": "PDF Workbench: KI-Anbieter wählen",
+  "cmd.setApiKey.title": "PDF Workbench: API-Schlüssel festlegen",
+  "cmd.showLicenses.title": "PDF Workbench: Lizenzen anzeigen",
+  "cmd.reportProblem.title": "PDF Workbench: Problem melden…",
+  "cmd.sendFeedback.title": "PDF Workbench: Feedback senden…",
+  "config.title": "PDF Workbench",
+  "config.dataFolder.description": "Ordner im Projekt, in dem Text, Markierungen und Lernhilfen jedes PDFs abgelegt werden.",
+  "config.openClaudeAfterPrompt.description": "Claude Code nach dem Kopieren eines Prompts automatisch öffnen.",
+  "config.ai.provider.description": "Welche KI die Aufgaben übernimmt: claude-code, zwischenablage (nur Zwischenablage), openai oder die ID eines Anbieters, den eine andere Erweiterung registriert hat.",
+  "config.ai.endpoint.description": "Basis-URL einer OpenAI-kompatiblen API. Beispiele: https://generativelanguage.googleapis.com/v1beta/openai (Gemini), http://localhost:11434/v1 (Ollama).",
+  "config.ai.model.description": "Modellname, z. B. gpt-4o-mini, gemini-2.0-flash oder llama3.1.",
+  "config.ai.maxChars.description": "Maximale Menge an PDF-Text (Zeichen), die an einen Anbieter gesendet wird.",
+  "config.feedback.githubRepo.description": "GitHub-URL (https://github.com/Name/Repo), an die Problemberichte gehen. Leer: Adresse aus bugs/repository der Erweiterung verwenden.",
+  "config.feedback.email.description": "E-Mail-Adresse für Problemberichte und Feedback."
+}

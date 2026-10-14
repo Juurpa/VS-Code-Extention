@@ -2,6 +2,7 @@
 import * as ops from './pdfops.js';
 import { S, $, $$, el, modal, toast, uid } from './util.js';
 import { commit, toB64, b64ToBytes } from './pages.js';
+import { t } from './i18n.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 S.red = {}; S.sig = null;
@@ -12,8 +13,8 @@ export function drawRed(rec) {
   const list = S.red[rec.n] || [];
   rec.redDiv.replaceChildren(...list.map((r, i) => {
     const remove = () => { list.splice(i, 1); if (!list.length) delete S.red[rec.n]; drawRed(rec); S.api.renderToolOpts(); };
-    const d = el('div', { class: 'redBox', title: 'Redaction area' },
-      el('button', { class: 'boxDel', type: 'button', title: 'Remove area (Del)', 'aria-label': 'Remove area', html: '&times;', onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); if (S.tool === 'redact') remove(); } }));
+    const d = el('div', { class: 'redBox', title: t('Redaction area') },
+      el('button', { class: 'boxDel', type: 'button', title: t('Remove area (Del)'), 'aria-label': t('Remove area'), html: '&times;', onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); if (S.tool === 'redact') remove(); } }));
     const place = () => { d.style.cssText = `left:${r[0] * 100}%;top:${r[1] * 100}%;width:${r[2] * 100}%;height:${r[3] * 100}%`; };
     for (const h of ['nw', 'ne', 'sw', 'se']) d.append(el('i', { class: 'redH ' + h, 'data-h': h }));
     // Move by dragging the bar, resize by dragging a corner
@@ -44,8 +45,8 @@ const hit = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + 
 async function applyRedactions() {
   const pages = Object.keys(S.red).map(Number); if (!pages.length) return;
   const ann = clone(S.ann);
-  const info = el('p', {}, 'Redacting and verifying …');
-  const m = modal({ title: 'Redact', body: info, actions: [] });
+  const info = el('p', {}, t('Redacting and verifying …'));
+  const m = modal({ title: t('Redact'), body: info, actions: [] });
   try {
     const boxes = [];
     for (const n of pages) {
@@ -60,14 +61,14 @@ async function applyRedactions() {
       }
     }
     const r = await S.api.request({ type: 'redact', b64: toB64(S.bytes), boxes });
-    if (!r.ok) throw new Error(r.error || 'Redaction failed.');
-    if (r.verification && !r.verification.ok) throw new Error('Verification failed: redacted text is still in the file. Nothing was applied.');
-    if (!r.b64) throw new Error('No response received.');
+    if (!r.ok) throw new Error(r.error || t('Redaction failed.'));
+    if (r.verification && !r.verification.ok) throw new Error(t('Verification failed: redacted text is still in the file. Nothing was applied.'));
+    if (!r.b64) throw new Error(t('No response received.'));
     S.red = {};
     await commit(b64ToBytes(r.b64), ann);
     S.api.renderToolOpts?.();
     const img = (r.modes || []).filter((m) => m.reason);
-    toast(`Redacted on ${pages.length} ${pages.length === 1 ? 'page' : 'pages'} and verified: the text under the bars is removed, the rest of the page is unchanged.` + (img.length ? ` Page ${img.map((m) => m.page).join(', ')} had to be rebuilt as an image (${img[0].reason}); the text stays selectable there.` : ''), 9000);
+    toast((pages.length === 1 ? t('Redacted on {n} page and verified: the text under the bars is removed, the rest of the page is unchanged.', { n: pages.length }) : t('Redacted on {n} pages and verified: the text under the bars is removed, the rest of the page is unchanged.', { n: pages.length })) + (img.length ? ' ' + t('Page {pages} had to be rebuilt as an image ({reason}); the text stays selectable there.', { pages: img.map((m) => m.page).join(', '), reason: img[0].reason }) : ''), 9000);
   } finally { m.close(); }
 }
 
@@ -100,19 +101,19 @@ export function signatureDialog(then) {
       g.putImageData(id, 0, 0);
     }; img.src = URL.createObjectURL(f);
   };
-  modal({ title: 'Signature', wide: true, body: el('div', { class: 'stack' }, el('p', { class: 'muted' }, 'Sign with the mouse or a pen – or load a photo of your signature (a light background becomes transparent). This is a simple image signature and is not legally equivalent to a handwritten (written-form) signature.'), c, file,
-    el('div', { class: 'row', style: 'justify-content:flex-start' }, el('button', { class: 'pillBtn', onclick: () => g.clearRect(0, 0, c.width, c.height) }, 'Clear'), el('button', { class: 'pillBtn', onclick: () => file.click() }, 'Load image …'))),
-    actions: [{ label: 'Cancel' }, { label: 'Apply', primary: true, onClick: () => {
-      const t = trimCanvas(c); if (!t) { toast('Please sign first.'); return false; }
-      S.sig = t.toDataURL('image/png'); S.api.post({ type: 'saveSig', png: S.sig }); S.api.renderToolOpts(); then && then();
+  modal({ title: t('Signature'), wide: true, body: el('div', { class: 'stack' }, el('p', { class: 'muted' }, t('Sign with the mouse or a pen – or load a photo of your signature (a light background becomes transparent). This is a simple image signature and is not legally equivalent to a handwritten (written-form) signature.')), c, file,
+    el('div', { class: 'row', style: 'justify-content:flex-start' }, el('button', { class: 'pillBtn', onclick: () => g.clearRect(0, 0, c.width, c.height) }, t('Clear')), el('button', { class: 'pillBtn', onclick: () => file.click() }, t('Load image …')))),
+    actions: [{ label: t('Cancel') }, { label: t('Apply'), primary: true, onClick: () => {
+      const tr = trimCanvas(c); if (!tr) { toast(t('Please sign first.')); return false; }
+      S.sig = tr.toDataURL('image/png'); S.api.post({ type: 'saveSig', png: S.sig }); S.api.renderToolOpts(); then && then();
     } }] });
 }
 
 // Signature element on the page (movable, resize via the corner)
 export function makeSigEl(n, s) {
-  const box = el('div', { class: 'sigMark', 'data-ann': s.id, 'data-kind': 'sigs', 'data-page': n, title: 'Drag to move, corner to resize; eraser removes' });
+  const box = el('div', { class: 'sigMark', 'data-ann': s.id, 'data-kind': 'sigs', 'data-page': n, title: t('Drag to move, corner to resize; eraser removes') });
   const img = el('img', { src: s.img, draggable: false }); const handle = el('i', { class: 'sigHandle' });
-  const del = el('button', { class: 'boxDel', type: 'button', title: 'Remove signature (Del)', 'aria-label': 'Remove signature', html: '&times;' });
+  const del = el('button', { class: 'boxDel', type: 'button', title: t('Remove signature (Del)'), 'aria-label': t('Remove signature'), html: '&times;' });
   del.addEventListener('pointerdown', (e) => e.stopPropagation());
   del.addEventListener('click', (e) => { e.stopPropagation(); S.api.removeItem('sigs', n, s.id); });
   box.append(img, handle, del);
@@ -145,23 +146,23 @@ function placeSignature(e) {
     const x = Math.min(1 - w, Math.max(0, (e.clientX - b.left) / b.width - w / 2)), y = Math.min(1 - h, Math.max(0, (e.clientY - b.top) / b.height - h / 2));
     S.api.addItem('sigs', n, { id: uid(), x, y, w, h, img: S.sig });
     S.api.setTool('sign');
-    toast('Signature placed. To burn it in: "Save copy with annotations".', 5000);
+    toast(t('Signature placed. To burn it in: "Save copy with annotations".'), 5000);
   };
   im.src = S.sig;
 }
 
 // ------------------------------------------------------------ Toolbar options
-export function toolOpts(t, o) {
-  if (t === 'redact') {
+export function toolOpts(tool, o) {
+  if (tool === 'redact') {
     const n = redCount();
-    o.append(el('span', {}, n ? `${n} ${n === 1 ? 'area' : 'areas'} marked.` : 'Drag areas over the text that should disappear.'),
-      el('button', { class: 'pillBtn primary', disabled: !n, onclick: () => applyRedactions().catch((e) => toast('Error: ' + (e.message || e), 6000)) }, 'Apply redaction'),
-      el('button', { class: 'pillBtn', disabled: !n, onclick: () => { S.red = {}; S.pages.forEach(drawRed); S.api.renderToolOpts(); } }, 'Reset'),
-      el('span', { class: 'muted' }, 'The text under the bars is removed and verified. The remaining text stays searchable.'));
-  } else if (t === 'sign') {
+    o.append(el('span', {}, n ? (n === 1 ? t('{n} area marked.', { n }) : t('{n} areas marked.', { n })) : t('Drag areas over the text that should disappear.')),
+      el('button', { class: 'pillBtn primary', disabled: !n, onclick: () => applyRedactions().catch((e) => toast('Error: ' + (e.message || e), 6000)) }, t('Apply redaction')),
+      el('button', { class: 'pillBtn', disabled: !n, onclick: () => { S.red = {}; S.pages.forEach(drawRed); S.api.renderToolOpts(); } }, t('Reset')),
+      el('span', { class: 'muted' }, t('The text under the bars is removed and verified. The remaining text stays searchable.')));
+  } else if (tool === 'sign') {
     o.append(S.sig ? el('img', { src: S.sig, class: 'sigPrev' }) : null,
-      el('span', {}, S.sig ? 'Click on the page to place the signature.' : 'No signature created yet.'),
-      el('button', { class: 'pillBtn', onclick: () => signatureDialog() }, S.sig ? 'Create new …' : 'Create signature …'));
+      el('span', {}, S.sig ? t('Click on the page to place the signature.') : t('No signature created yet.')),
+      el('button', { class: 'pillBtn', onclick: () => signatureDialog() }, S.sig ? t('Create new …') : t('Create signature …')));
     if (!S.sig) signatureDialog();
   }
 }

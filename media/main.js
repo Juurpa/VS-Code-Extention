@@ -5,16 +5,18 @@ import { toPdf } from './pdfops.js';
 import { initPages, saveFile, saveAs, mergeDialog, splitDialog, compressDialog, cropDialog, numberDialog, insertFrom } from './pages.js';
 import { initTools, makeSigEl, drawRed } from './tools.js';
 import { ocrDialog } from './ocr.js';
+import { t, loadLang, applyI18n } from './i18n.js';
 
 const vscode = acquireVsCodeApi();
 const cfg = JSON.parse($('#cfg').dataset.cfg);
+await loadLang(cfg.lang);
 const BASE = 96 / 72;
 const HL_COLORS = ['#fff176', '#a5f3a0', '#8fd3ff', '#ffadd2'];
 const PEN_COLORS = ['#e53935', '#1e88e5', '#212121', '#43a047'];
 const wrapEl = $('#wrap'), viewerEl = $('#viewer');
 const post = (m) => vscode.postMessage(m);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-fillIcons();
+fillIcons(); applyI18n();
 document.title = cfg.name;
 S.name = cfg.name;
 
@@ -66,7 +68,7 @@ async function reload() {
 const markSelSafe = () => S.api.markSel && S.api.markSel();
 
 async function start() {
-  showMsg('Loading PDF …');
+  showMsg(t('Loading PDF …'));
   try {
     const [buf, init] = await Promise.all([fetch(cfg.pdfUri).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }), initP]);
     S.bytes = new Uint8Array(buf).slice();
@@ -75,11 +77,11 @@ async function start() {
     showMsg('');
     fitWidth(true);
     S.pages.forEach((p) => renderAnn(p.n));
-    S.pdf.getPage(1).then((p) => p.getTextContent()).then((t) => { if (!t.items.some((i) => i.str && i.str.trim())) toast('This PDF looks like a scan (no text on page 1). Use Tools → "Text recognition (OCR)" to make it searchable.', 9000); }).catch(() => {});
+    S.pdf.getPage(1).then((p) => p.getTextContent()).then((tc) => { if (!tc.items.some((i) => i.str && i.str.trim())) toast(t('This PDF looks like a scan (no text on page 1). Use Tools → "Text recognition (OCR)" to make it searchable.'), 9000); }).catch(() => {});
     if (!init.hasText) textsReady = (async () => { const t = await getAllTexts(); post({ type: 'saveText', texts: t }); })();
   } catch (e) {
     console.error(e);
-    showMsg('Could not open PDF: ' + (e.message || e));
+    showMsg(t('Could not open PDF: {msg}', { msg: e.message || e }));
   }
 }
 
@@ -182,7 +184,7 @@ const mouseNav = (e) => {
   e.preventDefault(); e.stopPropagation();
   if (e.type !== 'mouseup') return;
   const ok = e.button === 3 ? jumpBack() : jumpFwd();
-  if (!ok) toast(e.button === 3 ? 'Nothing to jump back to.' : 'Nothing to jump forward to.');
+  if (!ok) toast(e.button === 3 ? t('Nothing to jump back to.') : t('Nothing to jump forward to.'));
 };
 for (const ev of ['mousedown', 'mouseup', 'auxclick']) window.addEventListener(ev, mouseNav, true);
 function setCur(n) {
@@ -205,7 +207,7 @@ wrapEl.addEventListener('scroll', () => {
 $('#pageInput').addEventListener('change', (e) => goTo(parseInt(e.target.value, 10) || 1));
 $('#zoomIn').onclick = () => setZoom(S.zoom * 1.15);
 $('#zoomOut').onclick = () => setZoom(S.zoom / 1.15);
-$('#zoomLabel').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); showMenu(r.left, r.bottom + 4, [...[50, 75, 100, 125, 150, 200, 300].map((v) => ({ l: v + ' %', f: () => setZoom(v / 100) })), '-', { l: 'Fit width', f: () => fitWidth(false) }, { l: 'Fit page', f: fitPage }]); };
+$('#zoomLabel').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); showMenu(r.left, r.bottom + 4, [...[50, 75, 100, 125, 150, 200, 300].map((v) => ({ l: v + ' %', f: () => setZoom(v / 100) })), '-', { l: t('Fit width'), f: () => fitWidth(false) }, { l: t('Fit page'), f: fitPage }]); };
 $('#btnSide').onclick = () => $('#sideCol').classList.toggle('hidden');
 wrapEl.addEventListener('wheel', (e) => { if (e.ctrlKey) { e.preventDefault(); setZoom(S.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.pdf && S.fit === 'width') fitWidth(false); }, 200); });
@@ -283,9 +285,9 @@ function hideSel() { $('#selPop').hidden = true; }
 function showSelPop(sel) {
   const r = sel.getRangeAt(0).getBoundingClientRect(), pop = $('#selPop'), text = sel.toString(), page = pageOfNode(sel.anchorNode);
   pop.replaceChildren(
-    ...HL_COLORS.map((c) => el('button', { class: 'swatch', style: `background:${c}`, title: 'Highlight', onmousedown: (e) => e.preventDefault(), onclick: () => { selectionToHighlight(c); hideSel(); } })),
-    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: () => { hideSel(); askClaude('explain', { selection: text, page }); } }, S.ai.name + ': Explain'),
-    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: async () => { try { await navigator.clipboard.writeText(text); toast('Copied', 1200); } catch (e) {} hideSel(); } }, 'Copy'));
+    ...HL_COLORS.map((c) => el('button', { class: 'swatch', style: `background:${c}`, title: t('Highlight'), onmousedown: (e) => e.preventDefault(), onclick: () => { selectionToHighlight(c); hideSel(); } })),
+    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: () => { hideSel(); askClaude('explain', { selection: text, page }); } }, t('{name}: Explain', { name: S.ai.name })),
+    el('button', { class: 't', onmousedown: (e) => e.preventDefault(), onclick: async () => { try { await navigator.clipboard.writeText(text); toast(t('Copied'), 1200); } catch (e) {} hideSel(); } }, t('Copy')));
   pop.hidden = false;
   const pw = pop.offsetWidth;
   pop.style.left = Math.max(8, Math.min(innerWidth - pw - 8, r.left + r.width / 2 - pw / 2)) + 'px';
@@ -331,10 +333,10 @@ viewerEl.addEventListener('click', (e) => {
 });
 function closeNote() { $('#notePop').hidden = true; }
 function openNoteEditor(n, x, y, item, anchor, cx, cy) {
-  const pop = $('#notePop'), ta = el('textarea', { placeholder: 'Comment …' }); ta.value = item?.text || '';
+  const pop = $('#notePop'), ta = el('textarea', { placeholder: t('Comment …') }); ta.value = item?.text || '';
   const save = () => { const t = ta.value.trim(); if (item) { if (t) { item.text = t; renderAnn(n); saveAnn(); } else removeItem('notes', n, item.id); } else if (t) addItem('notes', n, { id: uid(), x, y, text: t }); closeNote(); };
   ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) save(); if (e.key === 'Escape') closeNote(); });
-  pop.replaceChildren(ta, el('div', { class: 'row' }, item ? el('button', { class: 'pillBtn', onclick: () => { removeItem('notes', n, item.id); closeNote(); } }, 'Delete') : null, el('button', { class: 'pillBtn primary', onclick: save }, 'Save')));
+  pop.replaceChildren(ta, el('div', { class: 'row' }, item ? el('button', { class: 'pillBtn', onclick: () => { removeItem('notes', n, item.id); closeNote(); } }, t('Delete')) : null, el('button', { class: 'pillBtn primary', onclick: save }, t('Save'))));
   pop.hidden = false;
   const r = anchor ? anchor.getBoundingClientRect() : { left: cx, bottom: cy };
   pop.style.left = Math.min(innerWidth - 270, Math.max(8, r.left)) + 'px'; pop.style.top = Math.min(innerHeight - pop.offsetHeight - 8, (r.bottom || cy) + 8) + 'px'; ta.focus();
@@ -342,15 +344,15 @@ function openNoteEditor(n, x, y, item, anchor, cx, cy) {
 
 // Tools
 function renderToolOpts() {
-  const t = S.tool, o = $('#toolOpts'); o.replaceChildren();
-  if (t === 'hl' || t === 'draw') {
-    const cols = t === 'hl' ? HL_COLORS : PEN_COLORS, cur = t === 'hl' ? S.hlColor : S.penColor;
-    o.append(el('span', {}, t === 'hl' ? 'Select text to highlight:' : 'Color:'));
-    cols.forEach((c) => o.append(el('button', { class: 'swatch' + (c === cur ? ' on' : ''), style: `background:${c}`, onclick: () => { if (t === 'hl') S.hlColor = c; else S.penColor = c; renderToolOpts(); } })));
-    if (t === 'draw') { o.append(el('span', {}, 'Width')); const r = el('input', { type: 'range', min: 1, max: 12, value: S.penW }); r.oninput = () => { S.penW = +r.value; }; o.append(r); }
-  } else if (t === 'erase') o.append(el('span', {}, 'Click or drag over a highlight, drawing, comment or signature.'));
-  else if (t === 'note') o.append(el('span', {}, 'Click on the page to add a comment.'));
-  else S.api.toolOptsExt?.(t, o);
+  const tl = S.tool, o = $('#toolOpts'); o.replaceChildren();
+  if (tl === 'hl' || tl === 'draw') {
+    const cols = tl === 'hl' ? HL_COLORS : PEN_COLORS, cur = tl === 'hl' ? S.hlColor : S.penColor;
+    o.append(el('span', {}, tl === 'hl' ? t('Select text to highlight:') : t('Color:')));
+    cols.forEach((c) => o.append(el('button', { class: 'swatch' + (c === cur ? ' on' : ''), style: `background:${c}`, onclick: () => { if (tl === 'hl') S.hlColor = c; else S.penColor = c; renderToolOpts(); } })));
+    if (tl === 'draw') { o.append(el('span', {}, t('Width'))); const r = el('input', { type: 'range', min: 1, max: 12, value: S.penW }); r.oninput = () => { S.penW = +r.value; }; o.append(r); }
+  } else if (tl === 'erase') o.append(el('span', {}, t('Click or drag over a highlight, drawing, comment or signature.')));
+  else if (tl === 'note') o.append(el('span', {}, t('Click on the page to add a comment.')));
+  else S.api.toolOptsExt?.(tl, o);
   o.hidden = !o.childElementCount;
 }
 function setTool(t) {
@@ -374,7 +376,7 @@ function applyAi(ai) {
   if (!ai) return;
   S.ai = ai;
   const b = $('#tClaude'); if (!b) return;
-  b.title = 'Give ' + ai.name + ' a task';
+  b.title = t('Give {name} a task', { name: ai.name });
   b.querySelector('.lbl').textContent = ai.name;
   const old = b.querySelector('.ic, .aiIcon, .aiBadge');
   let n;
@@ -390,27 +392,27 @@ window.addEventListener('message', (e) => { if (e.data?.type === 'ai') applyAi(e
 async function askClaude(kind, extra = {}) {
   if (!S.pdf) return;
   flushAnn();
-  if (kind !== 'explain') { toast('Preparing text for ' + S.ai.name + ' …', 4000); }
+  if (kind !== 'explain') { toast(t('Preparing text for {name} …', { name: S.ai.name }), 4000); }
   await textsReady; await sleep(350);
   post({ type: 'claude', kind, page: extra.page ?? S.cur, selection: extra.selection, count: extra.count });
 }
 function countDialog(kind, label) {
   const sel = el('select', {}, ...[5, 8, 12, 20].map((v) => el('option', { value: v, selected: v === 8 }, v)));
-  modal({ title: label, body: el('label', { class: 'muted' }, 'Count ', sel), actions: [{ label: 'Cancel' }, { label: 'Send to ' + S.ai.name, primary: true, onClick: () => askClaude(kind, { count: +sel.value }) }] });
+  modal({ title: label, body: el('label', { class: 'muted' }, t('Count') + ' ', sel), actions: [{ label: t('Cancel') }, { label: t('Send to {name}', { name: S.ai.name }), primary: true, onClick: () => askClaude(kind, { count: +sel.value }) }] });
 }
 $('#tClaude').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, [
-    { l: 'Summarize this page', f: () => askClaude('summary-page') },
-    { l: 'Summarize whole PDF', f: () => askClaude('summary-doc') },
-    { l: 'Create study sheet', f: () => askClaude('learn') },
-    { l: 'Create quiz …', f: () => countDialog('quiz', 'Create quiz') },
-    { l: 'Flashcards with ' + S.ai.name + ' …', f: () => countDialog('cards', 'Create flashcards') },
+    { l: t('Summarize this page'), f: () => askClaude('summary-page') },
+    { l: t('Summarize whole PDF'), f: () => askClaude('summary-doc') },
+    { l: t('Create study sheet'), f: () => askClaude('learn') },
+    { l: t('Create quiz …'), f: () => countDialog('quiz', t('Create quiz')) },
+    { l: t('Flashcards with {name} …', { name: S.ai.name }), f: () => countDialog('cards', t('Create flashcards')) },
     '-',
-    { l: 'Ask a question about the PDF', f: () => askClaude('ask') },
+    { l: t('Ask a question about the PDF'), f: () => askClaude('ask') },
     '-',
-    { l: 'Switch AI … (now: ' + S.ai.name + ')', f: () => post({ type: 'chooseAi' }) },
-    { l: 'Set up PDF tools for the AI …', f: () => post({ type: 'setupMcp' }) }
+    { l: t('Switch AI … (now: {name})', { name: S.ai.name }), f: () => post({ type: 'chooseAi' }) },
+    { l: t('Set up PDF tools for the AI …'), f: () => post({ type: 'setupMcp' }) }
   ]);
 };
 
@@ -419,31 +421,31 @@ const esre = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function highlights() { const out = []; Object.keys(S.ann).map(Number).sort((a, b) => a - b).forEach((n) => S.ann[n].hl.filter((h) => h.text && h.text !== '…').forEach((h) => out.push({ page: n, text: h.text }))); return out; }
 function clozeCards(hl, texts) {
   return hl.map((h) => {
-    const t = h.text.replace(/\s+/g, ' ').trim(), pt = (texts[h.page - 1] || '').replace(/\s+/g, ' ');
-    if (t.length > 140) return { front: `Page ${h.page}: How does the highlighted passage continue that begins with "${t.split(' ').slice(0, 6).join(' ')} …"?`, back: t, page: h.page };
-    const idx = pt.toLowerCase().indexOf(t.toLowerCase());
-    if (idx < 0) return { front: `Page ${h.page}: Complete the highlighted passage.`, back: t, page: h.page };
-    let s = pt.lastIndexOf('. ', idx); s = s < 0 ? 0 : s + 2; let e = pt.indexOf('. ', idx + t.length); e = e < 0 ? pt.length : e + 1;
-    let sentence = pt.slice(s, e); if (sentence.length > 380) sentence = pt.slice(Math.max(0, idx - 130), idx + t.length + 130);
-    return { front: sentence.replace(new RegExp(esre(t), 'i'), '[ … ]'), back: t, page: h.page };
+    const tx = h.text.replace(/\s+/g, ' ').trim(), pt = (texts[h.page - 1] || '').replace(/\s+/g, ' ');
+    if (tx.length > 140) return { front: t('Page {p}: How does the highlighted passage continue that begins with "{s} …"?', { p: h.page, s: tx.split(' ').slice(0, 6).join(' ') }), back: tx, page: h.page };
+    const idx = pt.toLowerCase().indexOf(tx.toLowerCase());
+    if (idx < 0) return { front: t('Page {p}: Complete the highlighted passage.', { p: h.page }), back: tx, page: h.page };
+    let s = pt.lastIndexOf('. ', idx); s = s < 0 ? 0 : s + 2; let e = pt.indexOf('. ', idx + tx.length); e = e < 0 ? pt.length : e + 1;
+    let sentence = pt.slice(s, e); if (sentence.length > 380) sentence = pt.slice(Math.max(0, idx - 130), idx + tx.length + 130);
+    return { front: sentence.replace(new RegExp(esre(tx), 'i'), '[ … ]'), back: tx, page: h.page };
   });
 }
 async function cards() {
   const hl = highlights();
-  if (!hl.length) { toast('Highlight passages in the text first. They become the flashcards.', 4500); return; }
+  if (!hl.length) { toast(t('Highlight passages in the text first. They become the flashcards.'), 4500); return; }
   runCards(clozeCards(hl, await getAllTexts()));
 }
 function runCards(deck) {
   deck = deck.slice(); let i = 0, known = 0; const total = deck.length, body = el('div', { style: 'display:flex;flex-direction:column;gap:12px' });
-  const m = modal({ title: 'Flashcards', body, wide: true, actions: [] });
+  const m = modal({ title: t('Flashcards'), body, wide: true, actions: [] });
   function show() {
     body.replaceChildren();
-    if (i >= deck.length) { body.append(el('p', { class: 'qq' }, `Done – ${known} of ${total} cards known.`), el('div', { class: 'row' }, el('button', { class: 'pillBtn primary', onclick: () => m.close() }, 'Close'))); return; }
+    if (i >= deck.length) { body.append(el('p', { class: 'qq' }, t('Done – {known} of {total} cards known.', { known, total })), el('div', { class: 'row' }, el('button', { class: 'pillBtn primary', onclick: () => m.close() }, t('Close')))); return; }
     const c = deck[i]; let flipped = false;
-    const card = el('div', { class: 'card', onclick: flip }, el('div', {}, el('small', {}, 'Front' + (c.page ? ` · p. ${c.page}` : '')), c.front));
-    function flip() { flipped = !flipped; card.replaceChildren(el('div', {}, el('small', {}, flipped ? 'Back' : 'Front'), flipped ? c.back : c.front)); btns.hidden = !flipped; }
-    const btns = el('div', { class: 'row', hidden: true }, el('button', { class: 'pillBtn', onclick: () => { deck.push(c); i++; show(); } }, 'Again'), el('button', { class: 'pillBtn primary', onclick: () => { known++; i++; show(); } }, 'Known'));
-    body.append(el('div', { class: 'progress' }, el('i', { style: `width:${(Math.min(i, total) / Math.max(total, deck.length)) * 100}%` })), el('p', { class: 'muted' }, `Card ${i + 1} of ${deck.length} – click to flip`), card, btns);
+    const card = el('div', { class: 'card', onclick: flip }, el('div', {}, el('small', {}, t('Front') + (c.page ? ' · ' + t('p. {n}', { n: c.page }) : '')), c.front));
+    function flip() { flipped = !flipped; card.replaceChildren(el('div', {}, el('small', {}, flipped ? t('Back') : t('Front')), flipped ? c.back : c.front)); btns.hidden = !flipped; }
+    const btns = el('div', { class: 'row', hidden: true }, el('button', { class: 'pillBtn', onclick: () => { deck.push(c); i++; show(); } }, t('Again')), el('button', { class: 'pillBtn primary', onclick: () => { known++; i++; show(); } }, t('Known')));
+    body.append(el('div', { class: 'progress' }, el('i', { style: `width:${(Math.min(i, total) / Math.max(total, deck.length)) * 100}%` })), el('p', { class: 'muted' }, t('Card {i} of {n} – click to flip', { i: i + 1, n: deck.length })), card, btns);
   }
   show();
 }
@@ -482,7 +484,7 @@ async function buildAnnotatedPdf() {
 }
 function toB64(bytes) { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
 $('#tSave').onclick = async () => {
-  try { toast('Creating copy …', 3000); post({ type: 'saveCopy', b64: toB64(await buildAnnotatedPdf()) }); }
+  try { toast(t('Creating copy …'), 3000); post({ type: 'saveCopy', b64: toB64(await buildAnnotatedPdf()) }); }
   catch (e) { toast('Error: ' + (e.message || e), 5000); }
 };
 
@@ -515,25 +517,25 @@ window.addEventListener('unhandledrejection', (e) => post({ type: 'jsError', mes
 $('#tTools').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, [
-    { l: 'Merge PDFs …', f: mergeDialog },
-    { l: 'Split PDF …', f: splitDialog },
-    { l: 'Insert pages from PDF …', f: () => insertFrom(S.cur) },
-    { l: 'Crop pages …', f: cropDialog },
-    { l: 'Insert page numbers …', f: numberDialog },
-    { l: 'Text recognition (OCR) …', f: () => ocrDialog().catch((e) => toast('Error: ' + (e.message || e), 6000)) },
-    { l: 'Compress …', f: compressDialog },
+    { l: t('Merge PDFs …'), f: mergeDialog },
+    { l: t('Split PDF …'), f: splitDialog },
+    { l: t('Insert pages from PDF …'), f: () => insertFrom(S.cur) },
+    { l: t('Crop pages …'), f: cropDialog },
+    { l: t('Insert page numbers …'), f: numberDialog },
+    { l: t('Text recognition (OCR) …'), f: () => ocrDialog().catch((e) => toast('Error: ' + (e.message || e), 6000)) },
+    { l: t('Compress …'), f: compressDialog },
     '-',
-    { l: 'Redact', f: () => setTool('redact') },
-    { l: 'Place signature', f: () => setTool('sign') },
+    { l: t('Redact'), f: () => setTool('redact') },
+    { l: t('Place signature'), f: () => setTool('sign') },
     '-',
-    { l: 'Report a problem …', f: () => reportDialog('bug') },
-    { l: 'Send feedback …', f: () => reportDialog('praise') },
-    { l: 'Licenses …', f: () => post({ type: 'licenses' }) }
+    { l: t('Report a problem …'), f: () => reportDialog('bug') },
+    { l: t('Send feedback …'), f: () => reportDialog('praise') },
+    { l: t('Licenses …'), f: () => post({ type: 'licenses' }) }
   ]);
 };
 $('#tFile').onclick = (e) => {
   const r = e.currentTarget.getBoundingClientRect();
-  showMenu(r.left, r.bottom + 4, [{ l: 'Save (overwrite file)', f: saveFile }, { l: 'Save as …', f: saveAs }]);
+  showMenu(r.left, r.bottom + 4, [{ l: t('Save (overwrite file)'), f: saveFile }, { l: t('Save as …'), f: saveAs }]);
 };
 Object.assign(S.api, { reload, request, post, showMenu, goTo, flushAnn, saveAnn, getAllTexts, updateUndo, renderToolOpts, addItem, removeItem, setTool });
 initPages(); initTools();

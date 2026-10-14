@@ -1,4 +1,5 @@
 // Shared state and small UI helpers
+import { t } from './i18n.js';
 export const S = {
   pdf: null, bytes: null, name: '', fp: '', zoom: 1, tool: 'select',
   hlColor: '#fff176', penColor: '#e53935', penW: 3,
@@ -63,14 +64,14 @@ export function fillIcons(root = document) {
 
 let toastTimer;
 export function toast(msg, ms = 3200) {
-  const t = $('#toast');
+  const tt = $('#toast');
   const isErr = /^Error/.test(msg);
-  t.textContent = isErr ? msg + '  (click to report)' : msg; t.hidden = false;
-  t.style.pointerEvents = isErr ? 'auto' : ''; t.style.cursor = isErr ? 'pointer' : '';
-  t.onclick = isErr ? () => { t.hidden = true; S.api.post && S.api.post({ type: 'report', kind: 'bug', what: msg }); } : null;
+  tt.textContent = isErr ? msg + '  ' + t('(click to report)') : msg; tt.hidden = false;
+  tt.style.pointerEvents = isErr ? 'auto' : ''; tt.style.cursor = isErr ? 'pointer' : '';
+  tt.onclick = isErr ? () => { tt.hidden = true; S.api.post && S.api.post({ type: 'report', kind: 'bug', what: msg }); } : null;
   if (isErr && S.api.post) S.api.post({ type: 'jsError', message: msg.slice(0, 300) });
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.hidden = true), isErr ? Math.max(ms, 8000) : ms);
+  toastTimer = setTimeout(() => (tt.hidden = true), isErr ? Math.max(ms, 8000) : ms);
 }
 
 export function modal({ title, body, actions = [], wide = false, onClose }) {

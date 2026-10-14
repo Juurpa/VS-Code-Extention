@@ -1,6 +1,7 @@
 // Page tools: selection, context menu, reordering, merging, splitting, compressing, cropping, page numbers
 import * as ops from './pdfops.js';
 import { S, $, $$, el, modal, toast } from './util.js';
+import { t } from './i18n.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 export const b64ToBytes = (b) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
@@ -32,7 +33,7 @@ const range = (n) => Array.from({ length: n }, (_, i) => i);
 function markSel() { S.pages.forEach((p) => p.thumb?.classList.toggle('sel', S.sel.has(p.n))); updateSelBar(); }
 function updateSelBar() {
   const bar = $('#selBar'); if (!bar) return;
-  bar.hidden = !S.sel.size; $('#selCount').textContent = S.sel.size + ' ' + (S.sel.size === 1 ? 'page' : 'pages') + ' selected';
+  bar.hidden = !S.sel.size; $('#selCount').textContent = S.sel.size === 1 ? t('{n} page selected', { n: S.sel.size }) : t('{n} pages selected', { n: S.sel.size });
 }
 function thumbClick(e, n) {
   if (e.shiftKey) { const a = Math.min(S.anchor, n), b = Math.max(S.anchor, n); S.sel = new Set(); for (let i = a; i <= b; i++) S.sel.add(i); }
@@ -47,16 +48,16 @@ function thumbMenu(e, n) {
 }
 export function pageMenuItems() {
   return [
-    { l: 'Rotate left', k: '90°', f: () => rotateSel(-90) },
-    { l: 'Rotate right', k: '90°', f: () => rotateSel(90) },
-    { l: 'Duplicate', f: duplicateSel },
-    { l: 'Delete', k: 'Del', f: deleteSel },
+    { l: t('Rotate left'), k: '90°', f: () => rotateSel(-90) },
+    { l: t('Rotate right'), k: '90°', f: () => rotateSel(90) },
+    { l: t('Duplicate'), f: duplicateSel },
+    { l: t('Delete'), k: 'Del', f: deleteSel },
     '-',
-    { l: 'Move up', f: () => moveSel(-1) },
-    { l: 'Move down', f: () => moveSel(1) },
+    { l: t('Move up'), f: () => moveSel(-1) },
+    { l: t('Move down'), f: () => moveSel(1) },
     '-',
-    { l: 'Extract as new PDF', f: extractSel },
-    { l: 'Insert pages from PDF after …', f: () => insertFrom(Math.max(...selIdx()) + 1) }
+    { l: t('Extract as new PDF'), f: extractSel },
+    { l: t('Insert pages from PDF after …'), f: () => insertFrom(Math.max(...selIdx()) + 1) }
   ];
 }
 
@@ -94,10 +95,10 @@ export const rotateSel = (d) => guard(async () => {
 });
 export const deleteSel = () => guard(async () => {
   const idx = selIdx(), n = nPages();
-  if (idx.length >= n) { toast('At least one page must remain.'); return; }
+  if (idx.length >= n) { toast(t('At least one page must remain.')); return; }
   const rest = range(n).filter((i) => !idx.includes(i));
   await commit(await ops.remove(S.bytes, idx), ops.annReorder(S.ann, rest));
-  toast(idx.length + (idx.length === 1 ? ' page deleted' : ' pages deleted') + ' – undo with Ctrl+Z.');
+  toast(idx.length === 1 ? t('{n} page deleted – undo with Ctrl+Z.', { n: idx.length }) : t('{n} pages deleted – undo with Ctrl+Z.', { n: idx.length }));
 });
 export const duplicateSel = () => guard(async () => {
   const idx = selIdx(), order = [];
@@ -119,7 +120,7 @@ export const extractSel = () => guard(async () => {
   const idx = selIdx(), bytes = await ops.extract(S.bytes, idx);
   const label = idx.length === 1 ? 'S' + (idx[0] + 1) : 'S' + (idx[0] + 1) + '-' + (idx[idx.length - 1] + 1);
   const r = await S.api.request({ type: 'saveMany', files: [{ name: `${baseName()}_${label}.pdf`, b64: toB64(bytes) }] });
-  if (r.ok) toast('Saved: ' + r.names.join(', '), 5000);
+  if (r.ok) toast(t('Saved: {names}', { names: r.names.join(', ') }), 5000);
 });
 export const insertFrom = (at) => guard(async () => {
   const r = await S.api.request({ type: 'pickPdfs', multi: false });
@@ -127,7 +128,7 @@ export const insertFrom = (at) => guard(async () => {
   const other = b64ToBytes(r.files[0].b64), k = await ops.pageCount(other), n = nPages();
   const order = [...range(at), ...Array(k).fill(-1), ...range(n).slice(at)];
   await commit(await ops.insert(S.bytes, other, at), ops.annReorder(S.ann, order));
-  toast(k + (k === 1 ? ' page' : ' pages') + ' inserted from "' + r.files[0].name + '".');
+  toast(k === 1 ? t('{n} page inserted from "{name}".', { n: k, name: r.files[0].name }) : t('{n} pages inserted from "{name}".', { n: k, name: r.files[0].name }));
 });
 
 // ------------------------------------------------------------ Dialogs
@@ -135,59 +136,60 @@ const field = (label, input, hint) => el('label', { class: 'fld' }, el('span', {
 const numInput = (v, min, max, step = 1) => el('input', { type: 'number', value: v, min, max, step });
 
 export function mergeDialog() {
-  const items = [{ name: S.name + '  (this document)', bytes: null, self: true }];
+  const items = [{ name: S.name + '  ' + t('(this document)'), bytes: null, self: true }];
   const list = el('div', { class: 'mlist' });
   const draw = () => {
     list.replaceChildren(...items.map((it, i) => el('div', { class: 'mrow' },
       el('span', { class: 'mname' }, (i + 1) + '. ' + it.name),
-      el('button', { class: 'tb icon', title: 'Move up', disabled: i === 0, onclick: () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; draw(); } }, '↑'),
-      el('button', { class: 'tb icon', title: 'Move down', disabled: i === items.length - 1, onclick: () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; draw(); } }, '↓'),
-      el('button', { class: 'tb icon', title: 'Remove', disabled: items.length < 2, onclick: () => { items.splice(i, 1); draw(); } }, '✕'))));
+      el('button', { class: 'tb icon', title: t('Move up'), disabled: i === 0, onclick: () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; draw(); } }, '↑'),
+      el('button', { class: 'tb icon', title: t('Move down'), disabled: i === items.length - 1, onclick: () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; draw(); } }, '↓'),
+      el('button', { class: 'tb icon', title: t('Remove'), disabled: items.length < 2, onclick: () => { items.splice(i, 1); draw(); } }, '✕'))));
   };
   draw();
   const add = el('button', { class: 'pillBtn', onclick: async () => {
     const r = await S.api.request({ type: 'pickPdfs', multi: true });
     (r.files || []).forEach((f) => items.push({ name: f.name, bytes: b64ToBytes(f.b64) })); draw();
-  } }, '+ Add PDF files …');
-  modal({ title: 'Merge PDFs', wide: true, body: el('div', { class: 'stack' }, el('p', { class: 'muted' }, 'Set the order. The result replaces this document in the editor; the file is only written when you click "Save".'), list, add),
-    actions: [{ label: 'Cancel' }, { label: 'Merge', primary: true, onClick: () => {
-      if (items.length < 2) { toast('Please add at least one more PDF.'); return false; }
+  } }, t('+ Add PDF files …'));
+  modal({ title: t('Merge PDFs'), wide: true, body: el('div', { class: 'stack' }, el('p', { class: 'muted' }, t('Set the order. The result replaces this document in the editor; the file is only written when you click "Save".')), list, add),
+    actions: [{ label: t('Cancel') }, { label: t('Merge'), primary: true, onClick: () => {
+      if (items.length < 2) { toast(t('Please add at least one more PDF.')); return false; }
       guard(async () => { const merged = await ops.merge(items.map((it) => it.bytes || S.bytes)); const order = []; let off = 0;
         for (const it of items) { const k = it.self ? nPages() : await ops.pageCount(it.bytes); if (it.self) order.push(...range(k)); else order.push(...Array(k).fill(-1)); off += k; } void off;
-        await commit(merged, ops.annReorder(S.ann, order)); toast('Merged: ' + nPages() + ' pages.'); });
+        await commit(merged, ops.annReorder(S.ann, order)); toast(t('Merged: {n} pages.', { n: nPages() })); });
     } }] });
 }
 
 export function splitDialog() {
   const n = nPages();
-  const mode = el('select', {}, el('option', { value: 'ranges' }, 'By page ranges'), el('option', { value: 'every' }, 'Every … pages'));
+  const mode = el('select', {}, el('option', { value: 'ranges' }, t('By page ranges')), el('option', { value: 'every' }, t('Every … pages')));
   const ranges = el('input', { type: 'text', value: n > 1 ? `1-${Math.ceil(n / 2)}, ${Math.ceil(n / 2) + 1}-${n}` : '1', placeholder: '1-3, 4-6, 7' });
-  const every = numInput(1, 1, n); const rowR = field('Ranges', ranges, 'Each range becomes its own PDF. Example: 1-3, 5, 7-9'), rowE = field('Pages per file', every); rowE.hidden = true;
+  const every = numInput(1, 1, n); const rowR = field(t('Ranges'), ranges, t('Each range becomes its own PDF. Example: 1-3, 5, 7-9')), rowE = field(t('Pages per file'), every); rowE.hidden = true;
   mode.onchange = () => { rowR.hidden = mode.value !== 'ranges'; rowE.hidden = mode.value !== 'every'; };
-  modal({ title: 'Split PDF', body: el('div', { class: 'stack' }, field('Mode', mode), rowR, rowE, el('p', { class: 'muted' }, 'The files are saved next to the original PDF.')),
-    actions: [{ label: 'Cancel' }, { label: 'Split', primary: true, onClick: () => {
+  modal({ title: t('Split PDF'), body: el('div', { class: 'stack' }, field(t('Mode'), mode), rowR, rowE, el('p', { class: 'muted' }, t('The files are saved next to the original PDF.'))),
+    actions: [{ label: t('Cancel') }, { label: t('Split'), primary: true, onClick: () => {
       guard(async () => {
         const parts = await ops.split(S.bytes, mode.value === 'every' ? { every: Math.max(1, +every.value | 0) } : { ranges: ranges.value });
         const r = await S.api.request({ type: 'saveMany', files: parts.map((p) => ({ name: `${baseName()}_${p.label}.pdf`, b64: toB64(p.bytes) })) });
-        if (r.ok) toast(r.names.length + ' files saved.', 5000);
+        if (r.ok) toast(t('{n} files saved.', { n: r.names.length }), 5000);
       });
     } }] });
 }
 
 export function cropDialog() {
-  const t = numInput(0, 0, 200), r = numInput(0, 0, 200), b = numInput(0, 0, 200), l = numInput(0, 0, 200);
-  const scope = el('select', {}, el('option', { value: 'all' }, 'All pages'), el('option', { value: 'sel' }, 'Selected pages (' + selIdx().length + ')'));
-  modal({ title: 'Crop pages', body: el('div', { class: 'stack' }, el('div', { class: 'grid4' }, field('Top (mm)', t), field('Right (mm)', r), field('Bottom (mm)', b), field('Left (mm)', l)), field('Apply to', scope), el('p', { class: 'muted' }, 'Trims the visible area; the content remains in the file.')),
-    actions: [{ label: 'Cancel' }, { label: 'Crop', primary: true, onClick: () => {
-      guard(async () => { const m = { top: +t.value * MM, right: +r.value * MM, bottom: +b.value * MM, left: +l.value * MM };
+  const tp = numInput(0, 0, 200), r = numInput(0, 0, 200), b = numInput(0, 0, 200), l = numInput(0, 0, 200);
+  const scope = el('select', {}, el('option', { value: 'all' }, t('All pages')), el('option', { value: 'sel' }, t('Selected pages ({n})', { n: selIdx().length })));
+  modal({ title: t('Crop pages'), body: el('div', { class: 'stack' }, el('div', { class: 'grid4' }, field(t('Top (mm)'), tp), field(t('Right (mm)'), r), field(t('Bottom (mm)'), b), field(t('Left (mm)'), l)), field(t('Apply to'), scope), el('p', { class: 'muted' }, t('Trims the visible area; the content remains in the file.'))),
+    actions: [{ label: t('Cancel') }, { label: t('Crop'), primary: true, onClick: () => {
+      guard(async () => { const m = { top: +tp.value * MM, right: +r.value * MM, bottom: +b.value * MM, left: +l.value * MM };
         await commit(await ops.crop(S.bytes, m, scope.value === 'sel' ? selIdx() : undefined), clone(S.ann)); });
     } }] });
 }
 
 // Page numbers: styles with examples, position grid and a live preview on the real page
-export const NUMBER_STYLES = [['{n}', '1'], ['- {n} -', '- 1 -'], ['Page {n}', 'Page 1'], ['Page {n} of {N}', 'Page 1 of 9'], ['{n} / {N}', '1 / 9']];
+// The word in the page number follows the interface language (evaluated when the dialog opens)
+export const numberStyles = () => [['{n}', '1'], ['- {n} -', '- 1 -'], [t('Page {n}'), t('Page 1')], [t('Page {n} of {N}'), t('Page 1 of 9')], ['{n} / {N}', '1 / 9']];
 export function numberDialog() {
-  const st = { format: 'Page {n} of {N}', pos: 'bottom-center', size: 11, margin: 24, start: 1, skipFirst: false, onlySel: false };
+  const st = { format: t('Page {n} of {N}'), pos: 'bottom-center', size: 11, margin: 24, start: 1, skipFirst: false, onlySel: false };
   const N = nPages(), cur = S.cur, sel = S.sel.size > 1 ? [...S.sel].sort((a, b) => a - b).map((n) => n - 1) : null;
   const fmtText = (i) => st.format.replace(/\{n\}/g, String(st.start + i)).replace(/\{N\}/g, String(N + st.start - 1));
   const prev = el('div', { class: 'numPrev' }), cv = el('canvas'), tag = el('div', { class: 'numTag' });
@@ -207,17 +209,17 @@ export function numberDialog() {
     await pg.render({ canvasContext: cv.getContext('2d'), viewport: v }).promise; refresh();
   });
   const radios = new Map(), cards = el('div', { class: 'numStyles' });
-  const custom = el('input', { type: 'text', value: st.format, 'aria-label': 'Custom format' });
+  const custom = el('input', { type: 'text', value: st.format, 'aria-label': t('Custom format') });
   const pickStyle = (f) => { st.format = f; custom.value = f; radios.forEach((b, k) => b.classList.toggle('on', k === f)); refresh(); };
-  NUMBER_STYLES.forEach(([f, ex]) => { const b = el('button', { type: 'button', class: 'numCard', 'data-fmt': f, onclick: () => pickStyle(f) }, el('b', {}, ex)); radios.set(f, b); cards.append(b); });
+  numberStyles().forEach(([f, ex]) => { const b = el('button', { type: 'button', class: 'numCard', 'data-fmt': f, onclick: () => pickStyle(f) }, el('b', {}, ex)); radios.set(f, b); cards.append(b); });
   custom.addEventListener('input', () => { st.format = custom.value; radios.forEach((b, k) => b.classList.toggle('on', k === st.format)); refresh(); });
-  const grid = el('div', { class: 'numGrid', role: 'radiogroup', 'aria-label': 'Position' }), cells = new Map();
-  [['top-left', 'Top left'], ['top-center', 'Top center'], ['top-right', 'Top right'], ['bottom-left', 'Bottom left'], ['bottom-center', 'Bottom center'], ['bottom-right', 'Bottom right']].forEach(([v, t]) => {
+  const grid = el('div', { class: 'numGrid', role: 'radiogroup', 'aria-label': t('Position') }), cells = new Map();
+  [['top-left', t('Top left')], ['top-center', t('Top center')], ['top-right', t('Top right')], ['bottom-left', t('Bottom left')], ['bottom-center', t('Bottom center')], ['bottom-right', t('Bottom right')]].forEach(([v, t]) => {
     const c = el('button', { type: 'button', class: 'numCell', title: t, 'aria-label': t, 'data-pos': v, onclick: () => { st.pos = v; cells.forEach((x, k) => x.classList.toggle('on', k === v)); refresh(); } });
     cells.set(v, c); grid.append(c);
   });
   const slider = (min, max, key, unit) => {
-    const out = el('output', {}, st[key] + ' ' + unit), r = el('input', { type: 'range', min, max, value: st[key], 'aria-label': key });
+    const out = el('output', {}, st[key] + ' ' + unit), r = el('input', { type: 'range', min, max, value: st[key], 'aria-label': t(key === 'size' ? 'Font size' : 'Distance from edge') });
     r.addEventListener('input', () => { st[key] = +r.value; out.textContent = r.value + ' ' + unit; refresh(); });
     return el('div', { class: 'sl' }, r, out);
   };
@@ -227,13 +229,13 @@ export function numberDialog() {
   pickStyle(st.format); cells.get(st.pos).classList.add('on');
   const body = el('div', { class: 'numDlg' },
     el('div', { class: 'stack' },
-      field('Style', cards), field('Custom format', custom, '{n} = page number, {N} = total pages'),
-      field('Position', grid), field('Font size', slider(6, 30, 'size', 'pt')), field('Distance from edge', slider(10, 72, 'margin', 'pt')),
-      el('div', { class: 'grid2' }, field('First number', start)),
-      el('label', { class: 'chk' }, skip, 'Skip the first page (for example a cover)'),
-      sel ? el('label', { class: 'chk' }, only, 'Only the ' + sel.length + ' selected pages') : null),
-    el('div', { class: 'numSide' }, el('span', { class: 'muted' }, 'Preview, page ' + cur), prev));
-  modal({ title: 'Insert page numbers', wide: true, body, actions: [{ label: 'Cancel' }, { label: 'Insert', primary: true, onClick: () => {
+      field(t('Style'), cards), field(t('Custom format'), custom, t('{n} = page number, {N} = total pages')),
+      field(t('Position'), grid), field(t('Font size'), slider(6, 30, 'size', 'pt')), field(t('Distance from edge'), slider(10, 72, 'margin', 'pt')),
+      el('div', { class: 'grid2' }, field(t('First number'), start)),
+      el('label', { class: 'chk' }, skip, t('Skip the first page (for example a cover)')),
+      sel ? el('label', { class: 'chk' }, only, t('Only the {n} selected pages', { n: sel.length })) : null),
+    el('div', { class: 'numSide' }, el('span', { class: 'muted' }, t('Preview, page {n}', { n: cur })), prev));
+  modal({ title: t('Insert page numbers'), wide: true, body, actions: [{ label: t('Cancel') }, { label: t('Insert'), primary: true, onClick: () => {
     guard(async () => commit(await ops.numberPages(S.bytes, { format: st.format, pos: st.pos, size: st.size, margin: st.margin, start: st.start, skipFirst: st.skipFirst, only: st.onlySel && sel ? sel : null }), clone(S.ann)));
   } }] });
   requestAnimationFrame(refresh);
@@ -250,23 +252,23 @@ async function renderJpeg(rec, scale, q) {
 export { renderJpeg };
 
 export function compressDialog() {
-  const mode = el('select', {}, el('option', { value: 'light' }, 'Light – text stays, small savings'), el('option', { value: 'strong' }, 'Strong – pages become images (text no longer selectable)'));
-  const q = el('select', {}, el('option', { value: '110|0.6' }, 'Small (110 dpi)'), el('option', { value: '150|0.72' }, 'Medium (150 dpi)'), el('option', { value: '200|0.8' }, 'Good (200 dpi)')); q.value = '150|0.72';
-  const qRow = field('Image quality', q); qRow.hidden = true; mode.onchange = () => { qRow.hidden = mode.value !== 'strong'; };
-  const info = el('p', { class: 'muted' }, 'Current size: ' + kb(S.bytes.length));
+  const mode = el('select', {}, el('option', { value: 'light' }, t('Light – text stays, small savings')), el('option', { value: 'strong' }, t('Strong – pages become images (text no longer selectable)')));
+  const q = el('select', {}, el('option', { value: '110|0.6' }, t('Small (110 dpi)')), el('option', { value: '150|0.72' }, t('Medium (150 dpi)')), el('option', { value: '200|0.8' }, t('Good (200 dpi)'))); q.value = '150|0.72';
+  const qRow = field(t('Image quality'), q); qRow.hidden = true; mode.onchange = () => { qRow.hidden = mode.value !== 'strong'; };
+  const info = el('p', { class: 'muted' }, t('Current size: {size}', { size: kb(S.bytes.length) }));
   const run = async (api) => {
     const before = S.bytes.length; let out;
     if (mode.value === 'light') out = await ops.optimize(S.bytes);
     else {
       const [dpi, jq] = q.value.split('|'); const scale = +dpi / 72, items = [];
-      for (const rec of S.pages) { info.textContent = `Page ${rec.n} of ${nPages()} …`; items.push({ index: rec.n - 1, ...(await renderJpeg(rec, scale, +jq)) }); }
+      for (const rec of S.pages) { info.textContent = t('Page {n} of {N} …', { n: rec.n, N: nPages() }); items.push({ index: rec.n - 1, ...(await renderJpeg(rec, scale, +jq)) }); }
       out = await ops.replaceWithImages(S.bytes, items);
     }
-    if (out.length >= before) { toast('The result would not be smaller (' + kb(out.length) + '). Nothing was changed.', 5000); return; }
-    await commit(out, clone(S.ann)); toast(`Compressed: ${kb(before)} → ${kb(out.length)}`, 5000);
+    if (out.length >= before) { toast(t('The result would not be smaller ({size}). Nothing was changed.', { size: kb(out.length) }), 5000); return; }
+    await commit(out, clone(S.ann)); toast(t('Compressed: {before} → {after}', { before: kb(before), after: kb(out.length) }), 5000);
   };
-  modal({ title: 'Compress PDF', body: el('div', { class: 'stack' }, field('Mode', mode), qRow, info),
-    actions: [{ label: 'Cancel' }, { label: 'Compress', primary: true, onClick: (api) => { guard(() => run(api)); } }] });
+  modal({ title: t('Compress PDF'), body: el('div', { class: 'stack' }, field(t('Mode'), mode), qRow, info),
+    actions: [{ label: t('Cancel') }, { label: t('Compress'), primary: true, onClick: (api) => { guard(() => run(api)); } }] });
 }
 
 // ------------------------------------------------------------ Saving
@@ -274,13 +276,13 @@ export async function saveFile() {
   await guard(async () => {
     const r = await S.api.request({ type: 'confirmOverwrite', name: S.name }); if (!r.ok) return;
     const w = await S.api.request({ type: 'saveFile', b64: toB64(S.bytes) });
-    if (w.ok) { S.dirty = false; updateDirty(); toast('Saved.'); S.api.flushAnn(); const t = await S.api.getAllTexts(); S.api.post({ type: 'saveText', texts: t }); }
+    if (w.ok) { S.dirty = false; updateDirty(); toast(t('Saved.')); S.api.flushAnn(); const txt = await S.api.getAllTexts(); S.api.post({ type: 'saveText', texts: txt }); }
   });
 }
 export async function saveAs() {
   await guard(async () => {
     const w = await S.api.request({ type: 'saveAs', b64: toB64(S.bytes), suggested: baseName() + '_new.pdf' });
-    if (w.ok) toast('Saved: ' + w.name, 5000);
+    if (w.ok) toast(t('Saved: {names}', { names: w.name }), 5000);
   });
 }
 
@@ -288,10 +290,10 @@ export function initPages() {
   S.api.decorateThumb = decorateThumb; S.api.markSel = markSel; S.api.updateDirty = updateDirty;
   $('#selBar').append(
     el('span', { id: 'selCount', class: 'muted' }),
-    el('button', { class: 'tb icon', title: 'Rotate left', onclick: () => rotateSel(-90) }, '↺'),
-    el('button', { class: 'tb icon', title: 'Rotate right', onclick: () => rotateSel(90) }, '↻'),
-    el('button', { class: 'tb icon', title: 'Delete (Del)', onclick: deleteSel, html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>' }),
-    el('button', { class: 'tb icon', title: 'Extract as new PDF', onclick: extractSel, html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>' }));
+    el('button', { class: 'tb icon', title: t('Rotate left'), onclick: () => rotateSel(-90) }, '↺'),
+    el('button', { class: 'tb icon', title: t('Rotate right'), onclick: () => rotateSel(90) }, '↻'),
+    el('button', { class: 'tb icon', title: t('Delete (Del)'), onclick: deleteSel, html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>' }),
+    el('button', { class: 'tb icon', title: t('Extract as new PDF'), onclick: extractSel, html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>' }));
   document.addEventListener('keydown', (e) => {
     const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable;
     if (typing) return;

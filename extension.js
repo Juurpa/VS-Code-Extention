@@ -50,7 +50,7 @@ class PdfEditorProvider {
     panel.webview.html = this.html(panel.webview, mediaUri, {
       pdfUri: panel.webview.asWebviewUri(uri).toString(),
       mediaUri: panel.webview.asWebviewUri(mediaUri).toString(),
-      name: path.basename(uri.fsPath), relPdf, dataFolder
+      name: path.basename(uri.fsPath), relPdf, dataFolder, lang: vscode.env.language
     });
 
     const send = (m) => panel.webview.postMessage(m);
@@ -80,21 +80,21 @@ class PdfEditorProvider {
           case 'saveCopy': {
             const out = vscode.Uri.file(uri.fsPath.replace(/\.pdf$/i, '') + '_marked.pdf');
             await writeFile(out, Buffer.from(msg.b64, 'base64'));
-            vscode.window.showInformationMessage('Saved: ' + path.basename(out.fsPath), 'Open').then((c) => { if (c) vscode.commands.executeCommand('vscode.open', out); });
+            vscode.window.showInformationMessage(vscode.l10n.t('Saved: {0}', path.basename(out.fsPath)), vscode.l10n.t('Open')).then((c) => { if (c) vscode.commands.executeCommand('vscode.open', out); });
             break;
           }
           case 'openMarks':
             if (await exists(marksUri)) await vscode.commands.executeCommand('vscode.open', marksUri, { viewColumn: vscode.ViewColumn.Beside });
-            else vscode.window.showInformationMessage('No highlights yet.');
+            else vscode.window.showInformationMessage(vscode.l10n.t('No highlights yet.'));
             break;
           case 'claude': {
-            if (!(await exists(textUri))) vscode.window.showInformationMessage('Note: The PDF text is still being stored. If the AI cannot find it, try again in a moment.');
+            if (!(await exists(textUri))) vscode.window.showInformationMessage(vscode.l10n.t('Note: The PDF text is still being stored. If the AI cannot find it, try again in a moment.'));
             await ai.runTask(this.ctx, msg.kind, { relPdf, dataFolder, page: msg.page, selection: msg.selection, count: msg.count, dirUri, textUri, marksUri });
             break;
           }
           case 'saveSig': await this.ctx.globalState.update('pdfWorkbench.sig', msg.png); break;
           case 'pickPdfs': {
-            const picked = await vscode.window.showOpenDialog({ canSelectMany: !!msg.multi, filters: { PDF: ['pdf'] }, defaultUri: vscode.Uri.file(path.dirname(uri.fsPath)), openLabel: 'Select' });
+            const picked = await vscode.window.showOpenDialog({ canSelectMany: !!msg.multi, filters: { PDF: ['pdf'] }, defaultUri: vscode.Uri.file(path.dirname(uri.fsPath)), openLabel: vscode.l10n.t('Select') });
             const files = [];
             for (const u of picked || []) files.push({ name: path.basename(u.fsPath), b64: Buffer.from(await vscode.workspace.fs.readFile(u)).toString('base64') });
             send({ type: 'reply', rid: msg.rid, files });
@@ -118,14 +118,14 @@ class PdfEditorProvider {
               const mod = await import(vscode.Uri.joinPath(this.ctx.extensionUri, 'mcp', 'ocr.mjs').toString());
               const r = await mod.ocrPdf(new Uint8Array(Buffer.from(msg.b64, 'base64')), { pages: msg.pages, langs: msg.langs, fast: !!msg.fast, force: !!msg.force, signal: ac.signal, onProgress: (p) => send({ type: 'progress', rid: msg.rid, ...p }) });
               send({ type: 'reply', rid: msg.rid, ok: true, b64: r.bytes ? Buffer.from(r.bytes).toString('base64') : null, pages: r.pages, skipped: r.skipped, message: r.message });
-            } catch (err) { if (!ac.signal.aborted) fb.record('OCR', err); send({ type: 'reply', rid: msg.rid, ok: false, error: ac.signal.aborted ? 'Cancelled.' : String(err && err.message || err) }); }
+            } catch (err) { if (!ac.signal.aborted) fb.record('OCR', err); send({ type: 'reply', rid: msg.rid, ok: false, error: ac.signal.aborted ? vscode.l10n.t('Cancelled.') : String(err && err.message || err) }); }
             finally { ocrJobs.delete(msg.rid); }
             break;
           }
           case 'ocrCancel': ocrJobs.get(msg.rid)?.abort(); break;
           case 'confirmOverwrite': {
-            const c = await vscode.window.showWarningMessage(`Overwrite “${msg.name}” with the changes? Use “Save As” to keep the original.`, { modal: true }, 'Overwrite');
-            send({ type: 'reply', rid: msg.rid, ok: c === 'Overwrite' });
+            const ow = vscode.l10n.t('Overwrite'), c = await vscode.window.showWarningMessage(vscode.l10n.t('Overwrite “{0}” with the changes? Use “Save As” to keep the original.', msg.name), { modal: true }, ow);
+            send({ type: 'reply', rid: msg.rid, ok: c === ow });
             break;
           }
           case 'saveFile':
@@ -158,11 +158,11 @@ class PdfEditorProvider {
         }
       } catch (e) {
         if (e && e.code === 'CONFIG') { // missing setting: not a program error, so no report button
-          vscode.window.showWarningMessage('PDF Workbench: ' + e.message, 'Open Settings', 'Choose Another AI').then((c) => { if (c === 'Open Settings') vscode.commands.executeCommand('workbench.action.openSettings', 'pdfWorkbench.ai'); else if (c) vscode.commands.executeCommand('pdfWorkbench.chooseAi'); });
+          vscode.window.showWarningMessage(vscode.l10n.t('PDF Workbench: {0}', e.message), vscode.l10n.t('Open Settings'), vscode.l10n.t('Choose Another AI')).then((c) => { if (c === vscode.l10n.t('Open Settings')) vscode.commands.executeCommand('workbench.action.openSettings', 'pdfWorkbench.ai'); else if (c) vscode.commands.executeCommand('pdfWorkbench.chooseAi'); });
           return;
         }
         fb.record('Extension', e);
-        vscode.window.showErrorMessage('PDF Workbench: ' + (e.message || e), 'Report Problem').then((c) => { if (c) fb.open(this.ctx, { type: 'bug', what: String(e.message || e) }); });
+        vscode.window.showErrorMessage(vscode.l10n.t('PDF Workbench: {0}', String(e.message || e)), vscode.l10n.t('Report Problem')).then((c) => { if (c) fb.open(this.ctx, { type: 'bug', what: String(e.message || e) }); });
       }
     });
   }
@@ -187,7 +187,7 @@ ${require('./template')}
 async function redactBytes(ctx, bytes, boxes) {
   const mod = await import(vscode.Uri.joinPath(ctx.extensionUri, 'mcp', 'ops.mjs').toString());
   const r = await mod.redactVerified(new Uint8Array(bytes), { boxes });
-  if (!r.bytes) throw new Error('Nothing was redacted.');
+  if (!r.bytes) throw new Error(vscode.l10n.t('Nothing was redacted.'));
   return { bytes: r.bytes, pages: r.pagesChanged, modes: r.modes, verification: r.verification };
 }
 
@@ -203,7 +203,7 @@ async function checkStaleMcp(ctx) {
     const e = srv && (srv['pdf-workbench'] || srv.werkbank);
     const script = e && e.args && e.args[0];
     if (!script || require('fs').existsSync(script)) return;
-    const pick = await vscode.window.showWarningMessage('The PDF tools for the AI (.mcp.json) point to an old PDF Workbench version and will not start.', 'Repair now');
+    const pick = await vscode.window.showWarningMessage(vscode.l10n.t('The PDF tools for the AI (.mcp.json) point to an old PDF Workbench version and will not start.'), vscode.l10n.t('Repair now'));
     if (pick) await vscode.commands.executeCommand('pdfWorkbench.setupMcp');
   } catch (e) { /* only a convenience check; never disturb startup */ }
 }
@@ -220,24 +220,24 @@ function activate(ctx) {
 
   ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.setupClaudeMd', async () => {
     const ws = vscode.workspace.workspaceFolders?.[0];
-    if (!ws) { vscode.window.showWarningMessage('Open a folder first (File → Open Folder).'); return; }
+    if (!ws) { vscode.window.showWarningMessage(vscode.l10n.t('Open a folder first (File → Open Folder).')); return; }
     const uri = vscode.Uri.joinPath(ws.uri, 'CLAUDE.md');
     let cur = '';
     if (await exists(uri)) cur = dec(await vscode.workspace.fs.readFile(uri));
-    if (cur.includes(sc.CLAUDE_MD_MARK)) { vscode.window.showInformationMessage('The note is already in CLAUDE.md.'); return; }
+    if (cur.includes(sc.CLAUDE_MD_MARK)) { vscode.window.showInformationMessage(vscode.l10n.t('The note is already in CLAUDE.md.')); return; }
     await writeFile(uri, cur + (cur && !cur.endsWith('\n') ? '\n' : '') + (cur ? '\n' : '') + sc.claudeMdSnippet(cfg().get('dataFolder') || '_pdf-workbench'));
-    vscode.window.showInformationMessage('CLAUDE.md updated. Claude Code will now read the text and highlights of your PDFs first.');
+    vscode.window.showInformationMessage(vscode.l10n.t('CLAUDE.md updated. Claude Code will now read the text and highlights of your PDFs first.'));
     vscode.commands.executeCommand('vscode.open', uri);
   }));
 
   ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.setupMcp', async () => {
     const ws = vscode.workspace.workspaceFolders?.[0];
-    if (!ws) { vscode.window.showWarningMessage('Open a folder first (File → Open Folder).'); return; }
+    if (!ws) { vscode.window.showWarningMessage(vscode.l10n.t('Open a folder first (File → Open Folder).')); return; }
     const uri = vscode.Uri.joinPath(ws.uri, '.mcp.json');
     let json = {};
     if (await exists(uri)) {
       try { json = JSON.parse(dec(await vscode.workspace.fs.readFile(uri)) || '{}'); }
-      catch (e) { vscode.window.showErrorMessage('.mcp.json is not valid JSON. Please fix it first; nothing was overwritten.'); return; }
+      catch (e) { vscode.window.showErrorMessage(vscode.l10n.t('.mcp.json is not valid JSON. Please fix it first; nothing was overwritten.')); return; }
     }
     json.mcpServers = json.mcpServers || {};
     // VS Code ships its own Node runtime, so Node does not have to be installed on the machine.
@@ -248,7 +248,7 @@ function activate(ctx) {
       env: { ELECTRON_RUN_AS_NODE: '1', PDF_WORKBENCH_ROOT: ws.uri.fsPath, PDF_WORKBENCH_DATA: cfg().get('dataFolder') || '_pdf-workbench' }
     };
     await writeFile(uri, Buffer.from(JSON.stringify(json, null, 2) + '\n', 'utf8'));
-    vscode.window.showInformationMessage('PDF tools for the AI are set up (.mcp.json). In Claude Code, approve the “pdf-workbench” server once (command /mcp). Run this command again after a PDF Workbench update.', 'Open File').then((pick) => { if (pick) vscode.commands.executeCommand('vscode.open', uri); });
+    vscode.window.showInformationMessage(vscode.l10n.t('PDF tools for the AI are set up (.mcp.json). In Claude Code, approve the “pdf-workbench” server once (command /mcp). Run this command again after a PDF Workbench update.'), vscode.l10n.t('Open File')).then((pick) => { if (pick) vscode.commands.executeCommand('vscode.open', uri); });
   }));
 
   ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.internal.redact', (b64, boxes) => redactBytes(ctx, Buffer.from(b64, 'base64'), boxes).then((r) => ({ ...r, bytes: Buffer.from(r.bytes).toString('base64') }))));
@@ -271,7 +271,7 @@ function activate(ctx) {
     if (!ws) return;
     const uri = vscode.Uri.joinPath(ws.uri, cfg().get('dataFolder') || '_pdf-workbench');
     if (await exists(uri)) vscode.commands.executeCommand('revealInExplorer', uri);
-    else vscode.window.showInformationMessage('No PDF Workbench data yet. Open a PDF and highlight something.');
+    else vscode.window.showInformationMessage(vscode.l10n.t('No PDF Workbench data yet. Open a PDF and highlight something.'));
   }));
   return { registerProvider: ai.registerProvider };
 }

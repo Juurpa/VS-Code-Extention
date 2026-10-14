@@ -13,12 +13,13 @@
   ],
   "icon": "media/icon.png",
   "main": "./extension.js",
+  "l10n": "./l10n",
   "activationEvents": [],
   "contributes": {
     "customEditors": [
       {
         "viewType": "pdfWorkbench.pdfEditor",
-        "displayName": "PDF Workbench",
+        "displayName": "%customEditor.displayName%",
         "selector": [
           {
             "filenamePattern": "*.pdf"
@@ -30,79 +31,79 @@
     "commands": [
       {
         "command": "pdfWorkbench.setupClaudeMd",
-        "title": "PDF Workbench: Add Claude Code hint to CLAUDE.md"
+        "title": "%cmd.setupClaudeMd.title%"
       },
       {
         "command": "pdfWorkbench.setupMcp",
-        "title": "PDF Workbench: Set up PDF tools for AI (MCP)"
+        "title": "%cmd.setupMcp.title%"
       },
       {
         "command": "pdfWorkbench.revealData",
-        "title": "PDF Workbench: Show folder with texts and markings"
+        "title": "%cmd.revealData.title%"
       },
       {
         "command": "pdfWorkbench.chooseAi",
-        "title": "PDF Workbench: Choose AI provider"
+        "title": "%cmd.chooseAi.title%"
       },
       {
         "command": "pdfWorkbench.setApiKey",
-        "title": "PDF Workbench: Set API key"
+        "title": "%cmd.setApiKey.title%"
       },
       {
         "command": "pdfWorkbench.showLicenses",
-        "title": "PDF Workbench: Show licenses"
+        "title": "%cmd.showLicenses.title%"
       },
       {
         "command": "pdfWorkbench.reportProblem",
-        "title": "PDF Workbench: Report a problem…"
+        "title": "%cmd.reportProblem.title%"
       },
       {
         "command": "pdfWorkbench.sendFeedback",
-        "title": "PDF Workbench: Send feedback…"
+        "title": "%cmd.sendFeedback.title%"
       }
     ],
     "configuration": {
-      "title": "PDF Workbench",
+      "title": "%config.title%",
       "properties": {
         "pdfWorkbench.dataFolder": {
           "type": "string",
           "default": "_pdf-workbench",
-          "description": "Folder in the project where the text, markings and study aids of each PDF are stored."
+          "description": "%config.dataFolder.description%"
         },
         "pdfWorkbench.openClaudeAfterPrompt": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically open Claude Code after copying a prompt."
+          "description": "%config.openClaudeAfterPrompt.description%"
         },
         "pdfWorkbench.ai.provider": {
           "type": "string",
           "default": "claude-code",
-          "description": "Which AI handles the tasks: claude-code, zwischenablage (clipboard only), openai, or the ID of a provider registered by another extension."
+          "description": "%config.ai.provider.description%"
         },
         "pdfWorkbench.ai.endpoint": {
           "type": "string",
           "default": "https://api.openai.com/v1",
-          "description": "Base URL of an OpenAI-compatible API. Examples: https://generativelanguage.googleapis.com/v1beta/openai (Gemini), http://localhost:11434/v1 (Ollama)."
+          "description": "%config.ai.endpoint.description%"
         },
         "pdfWorkbench.ai.model": {
           "type": "string",
           "default": "",
-          "description": "Model name, e.g. gpt-4o-mini, gemini-2.0-flash or llama3.1."
+          "description": "%config.ai.model.description%"
         },
         "pdfWorkbench.ai.maxChars": {
           "type": "number",
           "default": 60000,
-          "description": "Maximum amount of PDF text (characters) sent to a provider."
+          "description": "%config.ai.maxChars.description%"
         },
         "pdfWorkbench.feedback.githubRepo": {
           "type": "string",
           "default": "",
-          "description": "GitHub URL (https://github.com/Name/Repo) that problem reports go to. Empty: use the address from the extension's bugs/repository."
+          "description": "%config.feedback.githubRepo.description%"
         },
         "pdfWorkbench.feedback.email": {
           "type": "string",
           "default": "",
-          "description": "Email address for problem reports and feedback."
+          "description": "%config.feedback.email.description%"
         }
       }
     }
