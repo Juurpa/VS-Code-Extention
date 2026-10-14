@@ -5,7 +5,7 @@ const sc = require('./sidecar');
 const ai = require('./ai');
 const fb = require('./feedback');
 
-const cfg = () => vscode.workspace.getConfiguration('werkbank');
+const cfg = () => vscode.workspace.getConfiguration('pdfWorkbench');
 const enc = (s) => Buffer.from(s, 'utf8');
 const dec = (b) => Buffer.from(b).toString('utf8');
 
@@ -18,7 +18,7 @@ async function writeFile(uri, content) {
 function nonce() { let t = ''; const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < 32; i++) t += c[Math.floor(Math.random() * c.length)]; return t; }
 
 const ocrJobs = new Map();
-const panels = new Set(); // open Werkbank views, so that switching the AI shows up everywhere immediately
+const panels = new Set(); // open PDF Workbench views, so that switching the AI shows up everywhere immediately
 
 function aiInfo(webview, mediaUri) {
   const d = ai.describe();
@@ -36,7 +36,7 @@ class PdfEditorProvider {
     const ws = vscode.workspace.getWorkspaceFolder(uri);
     const baseUri = ws ? ws.uri : vscode.Uri.file(path.dirname(uri.fsPath));
     const relPdf = sc.toPosix(path.relative(baseUri.fsPath, uri.fsPath));
-    const dataFolder = cfg().get('dataFolder') || '_werkbank';
+    const dataFolder = cfg().get('dataFolder') || '_pdf-workbench';
     const dirRel = sc.dataDirRel(dataFolder, relPdf);
     const dirUri = vscode.Uri.joinPath(baseUri, ...dirRel.split('/'));
     const annUri = vscode.Uri.joinPath(dirUri, 'annotations.json');
@@ -67,7 +67,7 @@ class PdfEditorProvider {
               const [a, b] = await Promise.all([vscode.workspace.fs.stat(textUri), vscode.workspace.fs.stat(uri)]);
               hasText = a.mtime >= b.mtime;
             }
-            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('werkbank.sig') || null, ai: aiInfo(panel.webview, mediaUri) });
+            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('pdfWorkbench.sig') || null, ai: aiInfo(panel.webview, mediaUri) });
             break;
           }
           case 'saveAnn':
@@ -92,7 +92,7 @@ class PdfEditorProvider {
             await ai.runTask(this.ctx, msg.kind, { relPdf, dataFolder, page: msg.page, selection: msg.selection, count: msg.count, dirUri, textUri, marksUri });
             break;
           }
-          case 'saveSig': await this.ctx.globalState.update('werkbank.sig', msg.png); break;
+          case 'saveSig': await this.ctx.globalState.update('pdfWorkbench.sig', msg.png); break;
           case 'pickPdfs': {
             const picked = await vscode.window.showOpenDialog({ canSelectMany: !!msg.multi, filters: { PDF: ['pdf'] }, defaultUri: vscode.Uri.file(path.dirname(uri.fsPath)), openLabel: 'Select' });
             const files = [];
@@ -149,20 +149,20 @@ class PdfEditorProvider {
             send({ type: 'reply', rid: msg.rid, ok: true, names });
             break;
           }
-          case 'licenses': vscode.commands.executeCommand('werkbank.showLicenses'); break;
-          case 'chooseAi': vscode.commands.executeCommand('werkbank.chooseAi'); break;
-          case 'setupMcp': vscode.commands.executeCommand('werkbank.setupMcp'); break;
+          case 'licenses': vscode.commands.executeCommand('pdfWorkbench.showLicenses'); break;
+          case 'chooseAi': vscode.commands.executeCommand('pdfWorkbench.chooseAi'); break;
+          case 'setupMcp': vscode.commands.executeCommand('pdfWorkbench.setupMcp'); break;
           case 'info': vscode.window.showInformationMessage(String(msg.text)); break;
           case 'jsError': fb.record('View', msg.message); break;
           case 'report': fb.open(this.ctx, { type: msg.kind || 'bug', title: msg.title, what: msg.what, pdf: msg.pdf }); break;
         }
       } catch (e) {
         if (e && e.code === 'CONFIG') { // missing setting: not a program error, so no report button
-          vscode.window.showWarningMessage('Werkbank: ' + e.message, 'Open Settings', 'Choose Another AI').then((c) => { if (c === 'Open Settings') vscode.commands.executeCommand('workbench.action.openSettings', 'werkbank.ai'); else if (c) vscode.commands.executeCommand('werkbank.chooseAi'); });
+          vscode.window.showWarningMessage('PDF Workbench: ' + e.message, 'Open Settings', 'Choose Another AI').then((c) => { if (c === 'Open Settings') vscode.commands.executeCommand('workbench.action.openSettings', 'pdfWorkbench.ai'); else if (c) vscode.commands.executeCommand('pdfWorkbench.chooseAi'); });
           return;
         }
         fb.record('Extension', e);
-        vscode.window.showErrorMessage('Werkbank: ' + (e.message || e), 'Report Problem').then((c) => { if (c) fb.open(this.ctx, { type: 'bug', what: String(e.message || e) }); });
+        vscode.window.showErrorMessage('PDF Workbench: ' + (e.message || e), 'Report Problem').then((c) => { if (c) fb.open(this.ctx, { type: 'bug', what: String(e.message || e) }); });
       }
     });
   }
@@ -191,28 +191,46 @@ async function redactBytes(ctx, bytes, boxes) {
   return { bytes: r.bytes, pages: r.pagesChanged, modes: r.modes, verification: r.verification };
 }
 
+// The path to server.mjs in .mcp.json contains the extension version. After an update it points to a folder that no longer exists
+// and the AI client only reports "Connection closed". So check at startup and offer (never silently) to repair it.
+async function checkStaleMcp(ctx) {
+  try {
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) return;
+    const uri = vscode.Uri.joinPath(ws.uri, '.mcp.json');
+    if (!(await exists(uri))) return;
+    const srv = JSON.parse(dec(await vscode.workspace.fs.readFile(uri)) || '{}').mcpServers;
+    const e = srv && (srv['pdf-workbench'] || srv.werkbank);
+    const script = e && e.args && e.args[0];
+    if (!script || require('fs').existsSync(script)) return;
+    const pick = await vscode.window.showWarningMessage('The PDF tools for the AI (.mcp.json) point to an old PDF Workbench version and will not start.', 'Repair now');
+    if (pick) await vscode.commands.executeCommand('pdfWorkbench.setupMcp');
+  } catch (e) { /* only a convenience check; never disturb startup */ }
+}
+
 function activate(ctx) {
   ai.registerBuiltins(ctx);
-  ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => { if (e.affectsConfiguration('werkbank.ai')) panels.forEach((p) => p.push()); }));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.chooseAi', ai.pickProvider));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.setApiKey', () => ai.setApiKey(ctx)));
-  ctx.subscriptions.push(vscode.window.registerCustomEditorProvider('werkbank.pdfEditor', new PdfEditorProvider(ctx), {
+  checkStaleMcp(ctx);
+  ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => { if (e.affectsConfiguration('pdfWorkbench.ai')) panels.forEach((p) => p.push()); }));
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.chooseAi', ai.pickProvider));
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.setApiKey', () => ai.setApiKey(ctx)));
+  ctx.subscriptions.push(vscode.window.registerCustomEditorProvider('pdfWorkbench.pdfEditor', new PdfEditorProvider(ctx), {
     webviewOptions: { retainContextWhenHidden: true }, supportsMultipleEditorsPerDocument: false
   }));
 
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.setupClaudeMd', async () => {
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.setupClaudeMd', async () => {
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) { vscode.window.showWarningMessage('Open a folder first (File → Open Folder).'); return; }
     const uri = vscode.Uri.joinPath(ws.uri, 'CLAUDE.md');
     let cur = '';
     if (await exists(uri)) cur = dec(await vscode.workspace.fs.readFile(uri));
     if (cur.includes(sc.CLAUDE_MD_MARK)) { vscode.window.showInformationMessage('The note is already in CLAUDE.md.'); return; }
-    await writeFile(uri, cur + (cur && !cur.endsWith('\n') ? '\n' : '') + (cur ? '\n' : '') + sc.claudeMdSnippet(cfg().get('dataFolder') || '_werkbank'));
+    await writeFile(uri, cur + (cur && !cur.endsWith('\n') ? '\n' : '') + (cur ? '\n' : '') + sc.claudeMdSnippet(cfg().get('dataFolder') || '_pdf-workbench'));
     vscode.window.showInformationMessage('CLAUDE.md updated. Claude Code will now read the text and highlights of your PDFs first.');
     vscode.commands.executeCommand('vscode.open', uri);
   }));
 
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.setupMcp', async () => {
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.setupMcp', async () => {
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) { vscode.window.showWarningMessage('Open a folder first (File → Open Folder).'); return; }
     const uri = vscode.Uri.joinPath(ws.uri, '.mcp.json');
@@ -223,36 +241,37 @@ function activate(ctx) {
     }
     json.mcpServers = json.mcpServers || {};
     // VS Code ships its own Node runtime, so Node does not have to be installed on the machine.
-    json.mcpServers.werkbank = {
+    delete json.mcpServers.werkbank; // old name before the rename
+    json.mcpServers['pdf-workbench'] = {
       command: process.execPath,
       args: [vscode.Uri.joinPath(ctx.extensionUri, 'mcp', 'server.mjs').fsPath],
-      env: { ELECTRON_RUN_AS_NODE: '1', WERKBANK_ROOT: ws.uri.fsPath, WERKBANK_DATA: cfg().get('dataFolder') || '_werkbank' }
+      env: { ELECTRON_RUN_AS_NODE: '1', PDF_WORKBENCH_ROOT: ws.uri.fsPath, PDF_WORKBENCH_DATA: cfg().get('dataFolder') || '_pdf-workbench' }
     };
     await writeFile(uri, Buffer.from(JSON.stringify(json, null, 2) + '\n', 'utf8'));
-    vscode.window.showInformationMessage('PDF tools for the AI are set up (.mcp.json). In Claude Code, approve the “werkbank” server once (command /mcp). Run this command again after a Werkbank update.', 'Open File').then((pick) => { if (pick) vscode.commands.executeCommand('vscode.open', uri); });
+    vscode.window.showInformationMessage('PDF tools for the AI are set up (.mcp.json). In Claude Code, approve the “pdf-workbench” server once (command /mcp). Run this command again after a PDF Workbench update.', 'Open File').then((pick) => { if (pick) vscode.commands.executeCommand('vscode.open', uri); });
   }));
 
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.internal.redact', (b64, boxes) => redactBytes(ctx, Buffer.from(b64, 'base64'), boxes).then((r) => ({ ...r, bytes: Buffer.from(r.bytes).toString('base64') }))));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.reportProblem', (o) => fb.open(ctx, { type: 'bug', ...(o && typeof o === 'object' ? o : {}) })));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.sendFeedback', () => fb.open(ctx, { type: 'praise' })));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.internal.report', async (form, extra) => {
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.internal.redact', (b64, boxes) => redactBytes(ctx, Buffer.from(b64, 'base64'), boxes).then((r) => ({ ...r, bytes: Buffer.from(r.bytes).toString('base64') }))));
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.reportProblem', (o) => fb.open(ctx, { type: 'bug', ...(o && typeof o === 'object' ? o : {}) })));
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.sendFeedback', () => fb.open(ctx, { type: 'praise' })));
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.internal.report', async (form, extra) => {
     const R = require('./report'), d = await fb.collect(ctx, extra && extra.pdf);
-    const g = R.githubUrl('https://github.com/test/werkbank', form, R.buildReport(form, d, { home: require('os').homedir(), roots: (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath) }));
+    const g = R.githubUrl('https://github.com/test/pdf-workbench', form, R.buildReport(form, d, { home: require('os').homedir(), roots: (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath) }));
     return { body: R.buildReport(form, d, { home: require('os').homedir(), roots: (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath) }), url: g && g.url, target: fb.target(ctx) };
   }));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.internal.ocr', async (b64, o) => {
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.internal.ocr', async (b64, o) => {
     const mod = await import(vscode.Uri.joinPath(ctx.extensionUri, 'mcp', 'ocr.mjs').toString());
     const r = await mod.ocrPdf(new Uint8Array(Buffer.from(b64, 'base64')), o || {});
     return { b64: r.bytes ? Buffer.from(r.bytes).toString('base64') : null, pages: r.pages, skipped: r.skipped };
   }));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.internal.record', (w, m) => fb.record(w, m)));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.showLicenses', () => vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.joinPath(ctx.extensionUri, 'THIRD_PARTY_LICENSES.md'))));
-  ctx.subscriptions.push(vscode.commands.registerCommand('werkbank.revealData', async () => {
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.internal.record', (w, m) => fb.record(w, m)));
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.showLicenses', () => vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.joinPath(ctx.extensionUri, 'THIRD_PARTY_LICENSES.md'))));
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.revealData', async () => {
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) return;
-    const uri = vscode.Uri.joinPath(ws.uri, cfg().get('dataFolder') || '_werkbank');
+    const uri = vscode.Uri.joinPath(ws.uri, cfg().get('dataFolder') || '_pdf-workbench');
     if (await exists(uri)) vscode.commands.executeCommand('revealInExplorer', uri);
-    else vscode.window.showInformationMessage('No Werkbank data yet. Open a PDF and highlight something.');
+    else vscode.window.showInformationMessage('No PDF Workbench data yet. Open a PDF and highlight something.');
   }));
   return { registerProvider: ai.registerProvider };
 }

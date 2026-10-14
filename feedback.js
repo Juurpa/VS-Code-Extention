@@ -17,7 +17,7 @@ function record(where, err) {
 const scrubOpt = () => ({ home: os.homedir(), roots: (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath) });
 
 function target(ctx) {
-  const c = vscode.workspace.getConfiguration('werkbank');
+  const c = vscode.workspace.getConfiguration('pdfWorkbench');
   const pj = ctx.extension.packageJSON || {};
   const repo = c.get('feedback.githubRepo') || (pj.bugs && (pj.bugs.url || pj.bugs)) || (pj.repository && (pj.repository.url || pj.repository)) || '';
   const email = c.get('feedback.email') || '';
@@ -25,15 +25,15 @@ function target(ctx) {
 }
 
 async function collect(ctx, pdf) {
-  const c = vscode.workspace.getConfiguration('werkbank');
+  const c = vscode.workspace.getConfiguration('pdfWorkbench');
   let mcp = 'no';
   try {
     const ws = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
-    if (ws) { const b = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(ws.uri, '.mcp.json')); mcp = /"werkbank"/.test(Buffer.from(b).toString('utf8')) ? 'set up' : 'no'; }
+    if (ws) { const b = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(ws.uri, '.mcp.json')); mcp = /"(pdf-workbench|werkbank)"/.test(Buffer.from(b).toString('utf8')) ? 'set up' : 'no'; }
   } catch (e) { /* no file */ }
   return {
     items: [
-      ['Werkbank', (ctx.extension.packageJSON || {}).version],
+      ['PDF Workbench', (ctx.extension.packageJSON || {}).version],
       ['VS Code', `${vscode.version} (${vscode.env.appName})`],
       ['System', `${process.platform} ${process.arch}, ${os.release()}`],
       ['Language', vscode.env.language],
@@ -49,7 +49,7 @@ async function collect(ctx, pdf) {
 async function open(ctx, opt = {}) {
   const diag = await collect(ctx, opt.pdf);
   const dest = target(ctx);
-  const panel = vscode.window.createWebviewPanel('werkbank.feedback', opt.type === 'bug' || !opt.type ? 'Report a Problem' : 'Give Feedback', vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
+  const panel = vscode.window.createWebviewPanel('pdfWorkbench.feedback', opt.type === 'bug' || !opt.type ? 'Report a Problem' : 'Give Feedback', vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
   const n = Array.from({ length: 24 }, () => Math.random().toString(36)[2]).join('');
   panel.webview.html = html(n, panel.webview.cspSource);
   const build = (form) => R.buildReport(form, diag, scrubOpt());
@@ -65,24 +65,24 @@ async function open(ctx, opt = {}) {
         if (m.kind === 'copy') { await vscode.env.clipboard.writeText(full); vscode.window.showInformationMessage('Report copied.'); }
         else if (m.kind === 'file') {
           const wsd = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
-          const def = vscode.Uri.file(path.join(wsd ? wsd.uri.fsPath : os.homedir(), 'werkbank-report.md'));
+          const def = vscode.Uri.file(path.join(wsd ? wsd.uri.fsPath : os.homedir(), 'pdf-workbench-report.md'));
           const out = await vscode.window.showSaveDialog({ defaultUri: def, filters: { Markdown: ['md'] } });
           if (out) { await vscode.workspace.fs.writeFile(out, Buffer.from(full, 'utf8')); vscode.window.showInformationMessage('Report saved: ' + path.basename(out.fsPath)); }
         } else if (m.kind === 'github') {
           const g = R.githubUrl(dest.repo, f, body);
-          if (!g) { vscode.window.showWarningMessage('No GitHub address for reports has been configured yet (setting werkbank.feedback.githubRepo).'); return; }
+          if (!g) { vscode.window.showWarningMessage('No GitHub address for reports has been configured yet (setting pdfWorkbench.feedback.githubRepo).'); return; }
           if (g.cut) await vscode.env.clipboard.writeText(full);
           await vscode.env.openExternal(vscode.Uri.parse(g.url));
           vscode.window.showInformationMessage(g.cut ? 'GitHub is open. The report was too long for the link: the full text is in your clipboard, please paste it there. Nothing is sent until you click “Submit” on GitHub.' : 'GitHub is open. Nothing is sent until you click “Submit new issue” there.');
         } else if (m.kind === 'email') {
           const e = R.mailtoUrl(dest.email, f, body);
-          if (!e) { vscode.window.showWarningMessage('No email address for reports has been configured yet (setting werkbank.feedback.email).'); return; }
+          if (!e) { vscode.window.showWarningMessage('No email address for reports has been configured yet (setting pdfWorkbench.feedback.email).'); return; }
           await vscode.env.clipboard.writeText(full);
           await vscode.env.openExternal(vscode.Uri.parse(e.url));
           vscode.window.showInformationMessage('Your email app is open. The full report is also in your clipboard. Nothing is sent until you click “Send” in the email.');
         }
       } else if (m.type === 'close') panel.dispose();
-    } catch (e) { record('feedback', e); vscode.window.showErrorMessage('Werkbank: ' + (e.message || e)); }
+    } catch (e) { record('feedback', e); vscode.window.showErrorMessage('PDF Workbench: ' + (e.message || e)); }
   });
 }
 
@@ -106,7 +106,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--vscode-textCodeB
 [hidden]{display:none!important}
 </style></head><body>
 <h2 id="h">Report a Problem</h2>
-<p class="sub">Your report helps improve Werkbank in the next update. Nothing is sent automatically.</p>
+<p class="sub">Your report helps improve PDF Workbench in the next update. Nothing is sent automatically.</p>
 <label for="type">Type of report</label>
 <select id="type"><option value="bug">Bug</option><option value="wish">Request / Idea</option><option value="praise">Praise / General</option></select>
 <label for="title">Short title</label><input type="text" id="title" maxlength="100" placeholder="e.g. Redaction fails on page 3">
@@ -118,8 +118,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--vscode-textCodeB
 <label for="contact">Contact for questions <span class="opt">(optional, e.g. email)</span></label><input type="text" id="contact">
 <div id="hints" class="warn" hidden></div>
 <label>What should be included?</label>
-<label class="chk"><input type="checkbox" id="withSystem" checked><span>System data: Werkbank, VS Code and operating system version, AI provider (no key)</span></label>
-<label class="chk" id="errRow"><input type="checkbox" id="withErrors" checked><span>Recent Werkbank error messages (paths and names are masked)</span></label>
+<label class="chk"><input type="checkbox" id="withSystem" checked><span>System data: PDF Workbench, VS Code and operating system version, AI provider (no key)</span></label>
+<label class="chk" id="errRow"><input type="checkbox" id="withErrors" checked><span>Recent PDF Workbench error messages (paths and names are masked)</span></label>
 <label class="chk" id="pdfRow"><input type="checkbox" id="withPdf"><span>Details about the open PDF: page count, size, creator application. Never content or file name.</span></label>
 <div class="note">Document contents, file names and your highlights are <b>never</b> included. A report on GitHub is public: do not enter any private data here. You can add screenshots there; check beforehand that nothing private is visible.</div>
 <label>Preview: exactly this will be sent</label><pre id="prev"></pre>

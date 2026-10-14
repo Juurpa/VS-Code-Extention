@@ -1,4 +1,4 @@
-# Stand und Plan (Version 0.7.2)
+# Stand und Plan (Version 0.8.1)
 
 ## Versionsverlauf (grob)
 - 0.3.x–0.5.x: Betrachter, Markierungen, Kommentare, Seitenwerkzeuge, Zusammenfügen/Aufteilen, einfache Signatur, KI-Aufgaben (Zusammenfassung, Lernzettel, Quiz …), MCP-Server, echtes Schwärzen mit Prüfung.
@@ -11,15 +11,15 @@
 - Schwärzen: Regressionssuite (a, b, c, lorem, rot, img) grün; qpdf-Prüfung, Text nachweislich weg.
 - OCR: synthetische Scans (Schatten, Rauschen, Schräge, 4 Drehungen, Tabellen); ~96 % Wortrückruf sauber, ~87 % schief; Scan → OCR → Schwärzen durchgängig.
 - Echter VS-Code-Lauf (Linux, 1.141) mit dem gepackten vsix: OCR, MCP (15 Werkzeuge), Editor, Anbieterwechsel.
-- Windows (Paul): Fehler-melden-Dialog bestätigt. **OCR unter Windows noch nicht bestätigt.**
+- Windows (Paul): Fehler-melden-Dialog bestätigt. **OCR und MCP-Start unter Windows 11 bestätigt (Version 0.8.1, siehe `docs/fehler-windows.md`).**
 
 ## Bekannte Grenzen
-- OCR: 10–25 s pro Seite; Handschrift/Formeln unzuverlässig; nur Deutsch + Englisch; nur mit synthetischen Scans getestet.
+- OCR: ca. 3 s pro A4-Seite (Windows 11, gemessen), je nach Rechner bis ca. 25 s; Handschrift/Formeln unzuverlässig; nur Deutsch + Englisch; nur mit synthetischen Scans getestet.
 - Bildsignatur ist nur eine einfache Signatur (rechtlich keine Schriftform).
 - pdf.js-Schriften für CJK können im Schwärzen auf den Bild-Fallback gehen.
 - MCP kann noch keine Markierungen/Kommentare schreiben.
 - Claude-Symbol durch eigenes neutrales Symbol (media/icons/ai.png) ersetzt.
-- Feedback-Ziele (`werkbank.feedback.githubRepo`, `.email`) nicht hinterlegt.
+- Feedback-Ziele (`pdfWorkbench.feedback.githubRepo`, `.email`) nicht hinterlegt.
 
 ## Backlog (Reihenfolge)
 1. **Design-/Live-Vorschau-Modul** (Handy-Apps, Icons, HTML mit Live-Vorschau, auch als MCP-Werkzeuge).

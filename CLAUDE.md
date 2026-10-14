@@ -1,6 +1,6 @@
-# Werkbank – Hinweise für Claude Code
+# PDF Workbench – Hinweise für Claude Code
 
-Du übernimmst die Weiterentwicklung der **Werkbank**, einer VS-Code-Erweiterung (Ordner hieß früher „Lernmodus“, daher noch `lernmodus-vscode`). Lies zuerst diese Datei, danach `docs/ARCHITEKTUR.md` (wie alles zusammenhängt) und `docs/STAND-UND-PLAN.md` (was fertig ist, was als Nächstes kommt).
+Du übernimmst die Weiterentwicklung der **PDF Workbench**, einer VS-Code-Erweiterung (Ordner hieß früher „Lernmodus“, daher noch `lernmodus-vscode`). Lies zuerst diese Datei, danach `docs/ARCHITEKTUR.md` (wie alles zusammenhängt) und `docs/STAND-UND-PLAN.md` (was fertig ist, was als Nächstes kommt).
 
 ## Was wir bauen
 Eine **Arbeitsumgebung für Dokumente in VS Code**, die teure Software ersetzen soll (Adobe Acrobat, Office, später auch Foto- und Videoschnitt), auch für den Einsatz bei Behörden und mit sensiblen Unterlagen. Leitidee: **Die KI bedient die Werkzeuge, der Mensch prüft, gibt frei und unterschreibt.** Die KI ist frei wählbar (Claude Code ist Standard, andere Anbieter über `ai.js` steckbar). Alles Wichtige läuft **lokal und offline** (Datenschutz ist ein Verkaufsargument).
@@ -9,7 +9,7 @@ Heute fertig: PDF lesen/markieren/kommentieren, Seitenwerkzeuge, Zusammenfügen/
 
 ## Der Nutzer
 Paul (Justin Paul), Student Biomedizintechnik an der FH Dortmund, Windows-PC, deutsch. Er will **konkrete Ergebnisse statt langer Erklärungen** („minimaler Aufwand, maximale Wirkung“), testet selbst in seinem VS Code und schickt Fehlerberichte. Kommunikation auf Deutsch, kurz und ohne Floskeln. Oberflächentexte der Erweiterung sind **deutsch**, Code-Kommentare ebenfalls.
-Auslieferung: Paket mit `npx @vscode/vsce package --allow-missing-repository -o werkbank-<version>.vsix`, Datei nach `C:\Users\321up\Documents` legen, Version in `package.json` (und `serverInfo.version` in `mcp/server.mjs`) hochzählen.
+Auslieferung: Paket mit `npx @vscode/vsce package --allow-missing-repository -o pdf-workbench-<version>.vsix`, Datei nach `C:\Users\321up\Documents` legen, Version in `package.json` (und `serverInfo.version` in `mcp/server.mjs`) hochzählen.
 
 ## Regeln, die nicht verhandelbar sind
 - **Originale nie überschreiben.** Werkzeuge der KI schreiben neue Dateien (`freeName` in `mcp/server.mjs`), die Oberfläche fragt vor dem Überschreiben.
@@ -23,15 +23,15 @@ Auslieferung: Paket mit `npx @vscode/vsce package --allow-missing-repository -o 
 ## Befehle
 ```
 npm install                                   # Abhängigkeiten
-npx @vscode/vsce package --allow-missing-repository -o werkbank-X.Y.Z.vsix
-code --install-extension werkbank-X.Y.Z.vsix  # lokal testen
+npx @vscode/vsce package --allow-missing-repository -o pdf-workbench-X.Y.Z.vsix
+code --install-extension pdf-workbench-X.Y.Z.vsix  # lokal testen
 node --check <datei>                          # schneller Syntaxtest (media/*.js sind ES-Module, media/package.json setzt type=module)
 ```
 Tests: siehe `test/tools/README.md` (Pfade sind für Linux geschrieben und müssen angepasst werden). Mindestens vor jeder Auslieferung: Schwärzen-Regression (`redact-suite.mjs`), OCR auf einem Test-Scan (`mkscan.mjs` + `run.mjs`), echter VS-Code-Lauf (`test/tools/vscode`).
 
 ## Stolpersteine (schon einmal schiefgegangen)
 - MCP-Server (`mcp/server.mjs`): **stdout gehört dem Protokoll.** Bibliotheken, die `console.log` nutzen (pdf.js), brechen es; `mcp/quiet.mjs` leitet auf stderr um und muss als Erstes importiert werden.
-- Der MCP-Server wird mit VS Codes eigener Node-Laufzeit gestartet (`process.execPath` + `ELECTRON_RUN_AS_NODE=1`), damit der Nutzer kein Node braucht. `.mcp.json` schreibt der Befehl `werkbank.setupMcp`.
+- Der MCP-Server wird mit VS Codes eigener Node-Laufzeit gestartet (`process.execPath` + `ELECTRON_RUN_AS_NODE=1`), damit der Nutzer kein Node braucht. `.mcp.json` schreibt der Befehl `pdfWorkbench.setupMcp`.
 - `pdf-lib` schreibt verwaiste Objekte mit; nach Änderungen `collectGarbage` (in `mcp/vredact.mjs`), sonst bleibt alter Inhalt in der Datei.
 - `pdf.js` meldet `TJ` als `showText`; Operatorliste mit `annotationMode: DISABLE` holen.
 - Tesseract-Kern: tesseract.js 7 lädt über `getCore` die **Nicht-LSTM-Kerne** (`tesseract-core*.wasm`), obwohl nur LSTM-Daten genutzt werden. Deshalb liegen im Paket nur die drei Kerne ohne `-lstm` im Namen (siehe `.vscodeignore`).

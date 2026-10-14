@@ -17,7 +17,7 @@ export const PERSON = {
 };
 
 const doc = await PDFDocument.create();
-doc.setTitle('Invoice 2026-0412'); doc.setAuthor('Example GmbH'); doc.setProducer('Werkbank demo');
+doc.setTitle('Invoice 2026-0412'); doc.setAuthor('Example GmbH'); doc.setProducer('PDF Workbench demo');
 const F = await doc.embedFont(StandardFonts.Helvetica), B = await doc.embedFont(StandardFonts.HelveticaBold);
 const W = 595.28, H = 841.89, M = 56;
 const ink = rgb(0.13, 0.15, 0.19), gray = rgb(0.42, 0.45, 0.5), brand = rgb(0.1, 0.27, 0.55), light = rgb(0.93, 0.95, 0.98), line = rgb(0.8, 0.83, 0.88);

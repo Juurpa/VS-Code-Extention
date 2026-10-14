@@ -37,7 +37,7 @@ async function open(pdf, { name = pdf, cursor = false, dsf = 1.25, ann, text = t
   await page.waitForSelector('.page canvas', { timeout: 30000 });
   if (text) await page.waitForSelector('.page .textLayer span', { timeout: 30000 }).catch(() => {});
   // The UI never sets S.name from cfg.name (media/main.js; see README, known issue) -> file names in dialogs would be empty. Set it as intended.
-  await page.evaluate((n) => { window.__werkbank.S.name = n; }, name);
+  await page.evaluate((n) => { window.__pdfWorkbench.S.name = n; }, name);
   await sleep(1200);
   return { ctx, page };
 }
@@ -106,7 +106,7 @@ async function dragBox(page, r, pad = 3, onStep) {
   await page.mouse.up(); if (onStep) await onStep('up');
 }
 async function docBytes(page, file) {
-  const b64 = await page.evaluate(() => { const b = window.__werkbank.S.bytes; let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768)); return btoa(s); });
+  const b64 = await page.evaluate(() => { const b = window.__pdfWorkbench.S.bytes; let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768)); return btoa(s); });
   fs.writeFileSync(file, Buffer.from(b64, 'base64'));
 }
 // Boxes to redact: customer data (page 1) and mandate (page 2); returns rects per page.

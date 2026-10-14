@@ -8,15 +8,15 @@ VS Code
  │   ├─ feedback.js+report.js  Fehler melden / Feedback (Dialog als Webview-Panel, Bericht ohne Inhalte)
  │   ├─ sidecar.js          Hilfsdateien neben der PDF (Text, Markierungen) und CLAUDE.md-Snippet
  │   └─ import() von mcp/*.mjs  gemeinsame Engines für Schwärzen und OCR (dieselben wie im KI-Server)
- ├─ Webview "werkbank.pdfEditor" (media/*.js, template.js)   Oberfläche, pdf.js, pdf-lib
+ ├─ Webview "pdfWorkbench.pdfEditor" (media/*.js, template.js)   Oberfläche, pdf.js, pdf-lib
  └─ MCP-Server (mcp/server.mjs)  eigener Prozess, wird von Claude Code gestartet (stdio, JSON-RPC)
 ```
 
 ## Wichtige Dateien
 | Datei | Aufgabe |
 |---|---|
-| `package.json` | Befehle, Einstellungen (`werkbank.*`), Custom-Editor-Registrierung, Abhängigkeiten |
-| `extension.js` | `PdfEditorProvider` (Custom Editor, schreibgeschützt; Speichern geht über Nachrichten), Nachrichten `ready, saveAnn, saveText, saveCopy, redact, ocr, ocrScan, ocrCancel, report, jsError, saveFile, saveAs, saveMany, pickPdfs, chooseAi, setupMcp …`; Befehle `werkbank.setupMcp, reportProblem, sendFeedback, chooseAi, setApiKey, showLicenses, revealData, internal.*` (die `internal.*` sind nur für Tests) |
+| `package.json` | Befehle, Einstellungen (`pdfWorkbench.*`), Custom-Editor-Registrierung, Abhängigkeiten |
+| `extension.js` | `PdfEditorProvider` (Custom Editor, schreibgeschützt; Speichern geht über Nachrichten), Nachrichten `ready, saveAnn, saveText, saveCopy, redact, ocr, ocrScan, ocrCancel, report, jsError, saveFile, saveAs, saveMany, pickPdfs, chooseAi, setupMcp …`; Befehle `pdfWorkbench.setupMcp, reportProblem, sendFeedback, chooseAi, setApiKey, showLicenses, revealData, internal.*` (die `internal.*` sind nur für Tests) |
 | `template.js` | HTML-Gerüst des Betrachters (Werkzeugleiste, Seitenleiste, Modal-Wurzel) |
 | `media/main.js` | Start, Rendern der Seiten (pdf.js), Auswahl/Markieren, Menüs (Werkzeuge, Claude/KI), `applyAi` |
 | `media/pages.js` | Seitenwerkzeuge (drehen, löschen, umsortieren, zusammenfügen, aufteilen …), Speichern, `commit()` (Undo-fähige Änderung des Dokuments) |
@@ -36,7 +36,7 @@ VS Code
 | `ai.js` | Anbieter-Register; `describe()` liefert Name und Symbol für die Schaltfläche; `runTask` erzeugt Prompts je Aufgabe (Zusammenfassung, Lernzettel, Quiz, Karteikarten …) |
 
 ## Ablage neben der PDF (Sidecar)
-`_werkbank/<Pfad der PDF ohne .pdf>/` im Arbeitsordner (Einstellung `werkbank.dataFolder`): `annotations.json` (Markierungen/Zeichnungen/Kommentare/Unterschriften), `markierungen.md` (lesbar für die KI), `text.md` (Text je Seite). Claude liest diese Dateien; über `pdf_read_marks` auch per MCP.
+`_pdf-workbench/<Pfad der PDF ohne .pdf>/` im Arbeitsordner (Einstellung `pdfWorkbench.dataFolder`): `annotations.json` (Markierungen/Zeichnungen/Kommentare/Unterschriften), `markierungen.md` (lesbar für die KI), `text.md` (Text je Seite). Claude liest diese Dateien; über `pdf_read_marks` auch per MCP.
 
 ## Nachrichten Webview ↔ Erweiterung
 Webview sendet `{type, rid?, …}`; Antworten kommen als `{type:'reply', rid, …}`. Fortschritt (OCR) als `{type:'progress', rid, done, total, page}`. KI-Wechsel als `{type:'ai', ai:{id,name,icon}}`. Große Dateien gehen als Base64 (`toB64`/`b64ToBytes` in `media/pages.js`).
@@ -58,7 +58,7 @@ Webview sendet `{type, rid?, …}`; Antworten kommen als `{type:'reply', rid, �
 6. Mehrere Arbeiter (bis 3, `os.cpus()-1`), Abbruch per `AbortSignal`.
 
 ## KI-Anbieter
-`ai.registerProvider({id, label, shortName?, icon?, description?, inline, run(prompt, ctx)})`. `inline:false` = Anbieter liest Dateien selbst (Claude Code); `inline:true` = Text wird in den Prompt eingefügt, Antwort wird als Datei abgelegt. Einstellungen `werkbank.ai.provider/endpoint/model`, Schlüssel in `SecretStorage` (`werkbank.setApiKey`). Fremderweiterungen erhalten über den Rückgabewert von `activate()` ein `registerProvider`.
+`ai.registerProvider({id, label, shortName?, icon?, description?, inline, run(prompt, ctx)})`. `inline:false` = Anbieter liest Dateien selbst (Claude Code); `inline:true` = Text wird in den Prompt eingefügt, Antwort wird als Datei abgelegt. Einstellungen `pdfWorkbench.ai.provider/endpoint/model`, Schlüssel in `SecretStorage` (`pdfWorkbench.setApiKey`). Fremderweiterungen erhalten über den Rückgabewert von `activate()` ein `registerProvider`.
 
 ## Fehler melden
-`feedback.open(ctx, {type,title,what,pdf})` öffnet ein Webview-Panel; Bericht = `report.buildReport` (Systemdaten, letzte Fehler aus einem Ringspeicher, optional PDF-Eckdaten), alles durch `report.scrub`. Ziele: `werkbank.feedback.githubRepo` (oder `bugs`/`repository` aus `package.json`) und `werkbank.feedback.email`; zusätzlich Kopieren und Datei speichern. **Ziel noch nicht hinterlegt** (siehe Plan).
+`feedback.open(ctx, {type,title,what,pdf})` öffnet ein Webview-Panel; Bericht = `report.buildReport` (Systemdaten, letzte Fehler aus einem Ringspeicher, optional PDF-Eckdaten), alles durch `report.scrub`. Ziele: `pdfWorkbench.feedback.githubRepo` (oder `bugs`/`repository` aus `package.json`) und `pdfWorkbench.feedback.email`; zusätzlich Kopieren und Datei speichern. **Ziel noch nicht hinterlegt** (siehe Plan).

@@ -6,7 +6,7 @@ const errs=[];p.on('pageerror',e=>errs.push('PE '+e.message));p.on('console',m=>
 await p.goto('http://localhost:8765/lernmodus-vscode/harness2.html');
 await p.waitForSelector('.page canvas',{timeout:15000});await p.waitForTimeout(1500);
 console.log('hint toast:',await p.textContent('#toast'));
-console.log('text before:',JSON.stringify((await p.evaluate(()=>window.__werkbank.getAllTexts()))[0]).slice(0,80));
+console.log('text before:',JSON.stringify((await p.evaluate(()=>window.__pdfWorkbench.getAllTexts()))[0]).slice(0,80));
 await p.click('#tTools');await p.click('#menuPop button:has-text("Texterkennung")');
 await p.waitForSelector('.modal select',{timeout:15000});
 await p.screenshot({path:'/tmp/h/ocr1.png'});
@@ -15,7 +15,7 @@ await p.waitForTimeout(500);await p.screenshot({path:'/tmp/h/ocr2.png'});
 await p.waitForFunction(()=>/Text erkannt|Fehler/.test(document.querySelector('#toast')?.textContent||''),{timeout:120000});
 console.log('toast:',await p.textContent('#toast'));
 await p.waitForTimeout(1500);
-console.log('text after:',JSON.stringify((await p.evaluate(()=>window.__werkbank.getAllTexts()))[0]).slice(0,200));
+console.log('text after:',JSON.stringify((await p.evaluate(()=>window.__pdfWorkbench.getAllTexts()))[0]).slice(0,200));
 console.log('modal left:',await p.$$eval('.modal',e=>e.length));
 console.log(errs.join('\n')||'no errors');
 await b.close();})();

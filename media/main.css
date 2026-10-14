@@ -104,7 +104,7 @@ button:disabled{opacity:.35;cursor:default}
 .mrow{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:4px 6px}
 .mname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* ---- Werkbank: polish ---- */
+/* ---- PDF Workbench: polish ---- */
 body.vscode-light{--accent:#2b5fc7;--on-accent:#fff}
 body.vscode-high-contrast{--accent:var(--vscode-button-background,#0e639c);--on-accent:var(--vscode-button-foreground,#fff)}
 :root{--r:8px;--ring:0 0 0 2px color-mix(in srgb,var(--accent) 55%,transparent)}

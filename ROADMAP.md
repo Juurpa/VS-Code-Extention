@@ -81,9 +81,9 @@ Every AI feature works with any provider (Claude Code, OpenAI-compatible, local 
 
 Images, video and office files should not bloat this extension. Plan: when PDF Workbench is stable, split shared code (file handling, redaction principles, MCP server skeleton, AI provider layer) into a core package and ship focused extensions:
 
-- **Werkbank Image** – crop, resize, annotate, blur/redact regions and faces, strip EXIF, OCR, background removal (local).
-- **Werkbank Video** – trim, cut, subtitles, blur regions, export (needs ffmpeg; heavy, so a separate extension).
-- **Werkbank Office** – read and light-edit docx/xlsx/pptx, convert to PDF.
+- **Workbench Image** – crop, resize, annotate, blur/redact regions and faces, strip EXIF, OCR, background removal (local).
+- **Workbench Video** – trim, cut, subtitles, blur regions, export (needs ffmpeg; heavy, so a separate extension).
+- **Workbench Office** – read and light-edit docx/xlsx/pptx, convert to PDF.
 
 Each follows the same rules: originals are never overwritten, results are new files, nothing is sent without approval, verification where privacy is at stake.
 
@@ -94,3 +94,7 @@ Each follows the same rules: originals are never overwritten, results are new fi
 - No document content in logs, reports or error messages.
 - Local first; cloud features only with explicit approval.
 - Every new dependency gets its license entry in `THIRD_PARTY_LICENSES.md` and `NOTICE`.
+
+## Release model
+
+PDF Workbench stays **100% free** (Apache-2.0), with no paid tier and no license keys. Donations are welcome through a sponsor link (Buy Me a Coffee, GitHub Sponsors) once the accounts are set up. To do: add the link to `package.json` (`sponsor`), `.github/FUNDING.yml` and a short README section.

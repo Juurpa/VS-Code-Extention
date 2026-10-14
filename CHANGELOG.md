@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+- Renamed from "Werkbank" to "PDF Workbench": commands and settings `pdfWorkbench.*`, data folder `_pdf-workbench`, variables `PDF_WORKBENCH_ROOT` / `PDF_WORKBENCH_DATA` (the old `WERKBANK_*` variables are still read by the MCP server).
+- Windows fixes: a `.mcp.json` that points to an old extension folder is detected at startup and can be repaired with one click ("Connection closed" had no visible cause); clear message for a missing `file` argument; `pdf_info` groups equal page sizes; `pdf_read_text` no longer contains the control character U+0002 (hyphen); harmless pdf.js start-up warning no longer logged; OCR timing in the tool description corrected.
+- Details: `docs/fehler-windows.md`.
 ## 0.8.0
 - Complete English interface, messages, documentation and AI tool descriptions.
 - New icon and branding.

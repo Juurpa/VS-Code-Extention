@@ -56,7 +56,7 @@ function buildReport(form, diag, opt = {}) {
     const p = diag.pdf;
     L.push('<details><summary>Details about the open PDF (no content, no file name)</summary>', '', ...Object.entries(p).map(([k, v]) => `- ${k}: ${scrub(String(v), opt)}`), '', '</details>', '');
   }
-  L.push('---', '_Created with Werkbank. This report contains no document content._');
+  L.push('---', '_Created with PDF Workbench. This report contains no document content._');
   return L.join('\n');
 }
 
@@ -82,7 +82,7 @@ function githubUrl(repo, form, body, max = 6500) {
 function mailtoUrl(email, form, body, max = 1800) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email || ''))) return null;
   let b = body, cut = false;
-  const mk = (x) => `mailto:${email}?subject=${encodeURIComponent('Werkbank: ' + titleOf(form))}&body=${encodeURIComponent(x)}`;
+  const mk = (x) => `mailto:${email}?subject=${encodeURIComponent('PDF Workbench: ' + titleOf(form))}&body=${encodeURIComponent(x)}`;
   let url = mk(b);
   while (url.length > max && b.length > 200) { b = b.slice(0, Math.floor(b.length * 0.8)); cut = true; url = mk(b + '\n\n(truncated – full report attached)'); }
   return { url, cut };

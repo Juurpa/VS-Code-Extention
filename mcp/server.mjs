@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Werkbank MCP server: gives an AI (e.g. Claude Code) the PDF tools of the Werkbank.
-// Runs locally over stdin/stdout. Files only inside the working folder (WERKBANK_ROOT, otherwise the current directory).
+// PDF Workbench MCP server: gives an AI (e.g. Claude Code) the PDF tools of the PDF Workbench.
+// Runs locally over stdin/stdout. Files only inside the working folder (PDF_WORKBENCH_ROOT, otherwise the current directory).
 // Originals are never overwritten: results go to new files next to the original.
 import './quiet.mjs';
 import fs from 'node:fs';
@@ -9,8 +9,8 @@ import { ops, info, readText, find, redact, redactVerified, KINDS, parsePages } 
 import { ocrPdf, detectScanned } from './ocr.mjs';
 import { formFields, fillForm, flattenForm, watermark, readMetadata, writeMetadata } from './formtools.mjs';
 
-const ROOT = path.resolve(process.env.WERKBANK_ROOT || process.cwd());
-const DATA = process.env.WERKBANK_DATA || '_werkbank';
+const ROOT = path.resolve(process.env.PDF_WORKBENCH_ROOT || process.env.WERKBANK_ROOT || process.cwd());
+const DATA = process.env.PDF_WORKBENCH_DATA || process.env.WERKBANK_DATA || '_pdf-workbench';
 
 function safe(p) {
   const abs = path.resolve(ROOT, String(p));
@@ -18,7 +18,17 @@ function safe(p) {
   if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`"${p}" is outside the working folder (${ROOT}).`);
   return abs;
 }
-const readPdf = (p) => { const a = safe(p); if (!fs.existsSync(a)) throw new Error(`File not found: ${p}`); return new Uint8Array(fs.readFileSync(a)); };
+const readPdf = (p) => { if (p === undefined || p === null || p === '') throw new Error('Missing argument "file": path of the PDF, relative to the working folder.'); const a = safe(p); if (!fs.existsSync(a)) throw new Error(`File not found: ${p}`); return new Uint8Array(fs.readFileSync(a)); };
+// Consecutive pages of equal size and rotation become one entry (a 26-page book would otherwise list 26 identical objects).
+function groupSizes(sizes) {
+  const out = [];
+  for (const s of sizes || []) {
+    const last = out[out.length - 1];
+    if (last && last.width_pt === s.width_pt && last.height_pt === s.height_pt && last.rotation === s.rotation) last.to = s.page;
+    else out.push({ from: s.page, to: s.page, width_pt: s.width_pt, height_pt: s.height_pt, rotation: s.rotation });
+  }
+  return out.map(({ from, to, ...rest }) => ({ pages: from === to ? String(from) : `${from}-${to}`, ...rest }));
+}
 const rel = (a) => path.relative(ROOT, a).split(path.sep).join('/');
 function freeName(file, suffix, out) {
   if (out) { const a = safe(out); if (fs.existsSync(a)) throw new Error(`"${out}" already exists. Choose another name – existing files are never overwritten.`); return a; }
@@ -36,10 +46,10 @@ const kindsList = Object.entries(KINDS).map(([k, v]) => `${k} (${v.label})`).joi
 
 const TOOLS = [
   { name: 'pdf_info', description: 'Page count, title/author, page sizes, whether the PDF is encrypted and which pages have no text (scans; use pdf_ocr for those).', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
-    run: async (a) => { const b = readPdf(a.file), r = await info(b); try { r.pages_without_text = (await detectScanned(b)).filter((s) => s.scanned).map((s) => s.page); } catch { /* optional */ } return r; } },
+    run: async (a) => { const b = readPdf(a.file), r = await info(b); try { r.sizes = groupSizes(r.sizes); r.pages_without_text = (await detectScanned(b)).filter((s) => s.scanned).map((s) => s.page); } catch { /* optional */ } return r; } },
   { name: 'pdf_read_text', description: 'Reads the text of the PDF page by page. Pages without text (scanned images) are empty and carry a hint pointing to pdf_ocr.', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES }, required: ['file'] },
-    run: async (a) => (await readText(readPdf(a.file), a.pages)).map((p) => (p.text ? p : { ...p, note: 'No text on this page. Probably a scan: run pdf_ocr to recognize the text.' })) },
-  { name: 'pdf_ocr', description: 'Text recognition (OCR) for scanned pages, fully local and offline. Creates a new PDF: the image stays unchanged, the recognized text sits invisibly and exactly placed behind it (searchable, selectable, redactable). Detects rotated pages by itself. Default: all pages without text. Takes about 10–25 seconds per page (quality "fast" about half). Handwriting and formulas are not recognized reliably: tell the user about pages with low confidence (low_confidence).', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, languages: { type: 'array', items: { type: 'string', enum: ['deu', 'eng'] }, description: 'Languages, default ["deu","eng"]' }, quality: { type: 'string', enum: ['good', 'fast'], description: 'good = 300 dpi with an extra pass for tables/forms (default), fast = 250 dpi, no extra pass' }, force: { type: 'boolean', description: 'Also process pages that already have text (text is added, nothing is replaced). Usually not needed.' }, out: OUT }, required: ['file'] },
+    run: async (a) => (await readText(readPdf(a.file), a.pages)).map((p) => ({ ...p, text: typeof p.text === 'string' ? p.text.replace(/\u0002/g, '-') : p.text })).map((p) => (p.text ? p : { ...p, note: 'No text on this page. Probably a scan: run pdf_ocr to recognize the text.' })) },
+  { name: 'pdf_ocr', description: 'Text recognition (OCR) for scanned pages, fully local and offline. Creates a new PDF: the image stays unchanged, the recognized text sits invisibly and exactly placed behind it (searchable, selectable, redactable). Detects rotated pages by itself. Default: all pages without text. Takes roughly 3–25 seconds per page depending on the computer (measured on Windows 11: about 3 s per A4 page; quality "fast" is about twice as quick). There is no progress output while it runs. Handwriting and formulas are not recognized reliably: tell the user about pages with low confidence (low_confidence).', inputSchema: { type: 'object', properties: { file: FILE, pages: PAGES, languages: { type: 'array', items: { type: 'string', enum: ['deu', 'eng'] }, description: 'Languages, default ["deu","eng"]' }, quality: { type: 'string', enum: ['good', 'fast'], description: 'good = 300 dpi with an extra pass for tables/forms (default), fast = 250 dpi, no extra pass' }, force: { type: 'boolean', description: 'Also process pages that already have text (text is added, nothing is replaced). Usually not needed.' }, out: OUT }, required: ['file'] },
     run: async (a) => {
       const b = readPdf(a.file);
       const pages = a.pages ? parsePages(a.pages, (await info(b)).pages).map((i) => i + 1) : null;
@@ -47,7 +57,7 @@ const TOOLS = [
       if (!r.bytes) return { changed: false, note: r.message, skipped: r.skipped };
       return { file: write(freeName(a.file, 'ocr', a.out), r.bytes), pages: r.pages.map((p) => ({ page: p.page, words: p.words, confidence: p.conf, turned_by: p.turned, low_confidence: p.lowConf })), skipped_pages_with_text: r.skipped };
     } },
-  { name: 'pdf_read_marks', description: 'Reads the highlights and comments of the user from the Werkbank viewer (marks.md). This tells you which passages the user means.', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
+  { name: 'pdf_read_marks', description: 'Reads the highlights and comments of the user from the PDF Workbench viewer (marks.md). This tells you which passages the user means.', inputSchema: { type: 'object', properties: { file: FILE }, required: ['file'] },
     run: async (a) => {
       const p = path.join(safe(a.file).replace(/\.pdf$/i, '').replace(ROOT, path.join(ROOT, DATA)), 'marks.md');
       return fs.existsSync(p) ? { marks: fs.readFileSync(p, 'utf8') } : { marks: null, note: 'No markings yet.' };
@@ -116,7 +126,7 @@ async function handle(msg) {
   const { id, method, params } = msg;
   if (id === undefined) return; // notification
   try {
-    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'werkbank', version: '0.8.0' }, instructions: INSTRUCTIONS } });
+    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pdf-workbench', version: '0.8.1' }, instructions: INSTRUCTIONS } });
     if (method === 'ping') return send({ jsonrpc: '2.0', id, result: {} });
     if (method === 'tools/list') return send({ jsonrpc: '2.0', id, result: { tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) } });
     if (method === 'tools/call') {

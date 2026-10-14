@@ -538,7 +538,7 @@ $('#tFile').onclick = (e) => {
 Object.assign(S.api, { reload, request, post, showMenu, goTo, flushAnn, saveAnn, getAllTexts, updateUndo, renderToolOpts, addItem, setTool });
 initPages(); initTools();
 S.tool = 'none'; setTool('select');
-window.__werkbank = { S, getAllTexts };
+window.__pdfWorkbench = { S, getAllTexts };
 start();
 
 // Toolbar: mouse wheel scrolls sideways when the window is too narrow

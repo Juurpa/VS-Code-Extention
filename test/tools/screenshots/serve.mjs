@@ -72,7 +72,7 @@ window.acquireVsCodeApi = () => ({ postMessage: async (m) => {
 `;
 
 function harness(q, origin) {
-  const cfg = { pdfUri: `${origin}/__data/${q.get('pdf') || 'invoice.pdf'}`, mediaUri: `${origin}/media`, name: q.get('name') || 'invoice.pdf', relPdf: q.get('name') || 'invoice.pdf', dataFolder: '_werkbank' };
+  const cfg = { pdfUri: `${origin}/__data/${q.get('pdf') || 'invoice.pdf'}`, mediaUri: `${origin}/media`, name: q.get('name') || 'invoice.pdf', relPdf: q.get('name') || 'invoice.pdf', dataFolder: '_pdf-workbench' };
   const cursor = q.get('cursor') ? `<svg id="__cursor" viewBox="0 0 24 24"><path d="M4 2l15 10-6.5 1.2L9.2 20z" fill="#fff" stroke="#000" stroke-width="1.4" stroke-linejoin="round"/></svg><script>addEventListener('mousemove',e=>{const c=document.getElementById('__cursor');c.style.left=e.clientX-3+'px';c.style.top=e.clientY-2+'px'},true)</script>` : '';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>${THEME}</style>

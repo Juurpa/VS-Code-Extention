@@ -1,6 +1,6 @@
 # Lizenzen von Drittanbieter-Komponenten
 
-Die Werkbank selbst steht unter der Apache License 2.0 (siehe `LICENSE` und `NOTICE`). Sie enthält die folgenden freien Komponenten. Ihre Lizenztexte stehen unverändert darunter.
+Die PDF Workbench selbst steht unter der Apache License 2.0 (siehe `LICENSE` und `NOTICE`). Sie enthält die folgenden freien Komponenten. Ihre Lizenztexte stehen unverändert darunter.
 
 | Komponente | Lizenz | Urheber | Quelle |
 |---|---|---|---|
