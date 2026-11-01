@@ -16,5 +16,6 @@
   "config.ai.model.description": "Nome del modello, ad es. gpt-4o-mini, gemini-2.0-flash o llama3.1.",
   "config.ai.maxChars.description": "Quantità massima di testo PDF (caratteri) inviata a un provider.",
   "config.feedback.githubRepo.description": "URL GitHub (https://github.com/Nome/Repo) a cui vengono inviate le segnalazioni di problemi. Vuoto: usare l'indirizzo di bugs/repository dell'estensione.",
-  "config.feedback.email.description": "Indirizzo e-mail per segnalazioni di problemi e feedback."
+  "config.feedback.email.description": "Indirizzo e-mail per segnalazioni di problemi e feedback.",
+  "cmd.openIn.title": "Apri in PDF Workbench"
 }

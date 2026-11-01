@@ -20,7 +20,7 @@ export function pageChars(lib, page, scale = 1) {
   const W = size.width, H = size.height;
   const tp = m._FPDFText_LoadPage(page.pageIdx);
   if (!tp) throw new Error('Page has no readable text.');
-  const buf = m.wasmExports.malloc(64);
+  const buf = m.wasmExports.malloc(96);
   try {
     const n = m._FPDFText_CountChars(tp);
     const chars = [];
@@ -43,6 +43,8 @@ export function pageChars(lib, page, scale = 1) {
         const [ox, oy] = f64(m, buf + 48, 2);
         m._FPDF_PageToDevice(page.pageIdx, 0, 0, W, H, 0, ox, oy, buf + 32, buf + 36);
         const dv = new Int32Array(m.HEAPU8.buffer, buf + 32, 2); origin = [dv[0], dv[1]]; fs = m._FPDFText_GetFontSize(tp, i);
+        // Many PDFs (LaTeX, Word) set "1 Tf" and put the real size into the text matrix: font size × matrix scale
+        if (m._FPDFText_GetMatrix(tp, i, buf + 64)) { const [, , c, d] = new Float32Array(m.HEAPU8.buffer, buf + 64, 4), k = Math.hypot(c, d); if (k > 0.01 && fs * k > 0.5) fs *= k; }
       }
       chars.push({ ch: cp ? String.fromCodePoint(cp) : '', rect, gen, origin, fontSize: fs });
     }

@@ -9,6 +9,7 @@ import { ops, info, readText, find, redact, redactVerified, KINDS, parsePages } 
 import { ocrPdf, detectScanned } from './ocr.mjs';
 import { formFields, fillForm, flattenForm, watermark, readMetadata, writeMetadata } from './formtools.mjs';
 import { comparePdfs, reportMarkdown } from './compare.mjs';
+import { replaceText } from './edittext.mjs';
 
 const ROOT = path.resolve(process.env.PDF_WORKBENCH_ROOT || process.env.WERKBANK_ROOT || process.cwd());
 const DATA = process.env.PDF_WORKBENCH_DATA || process.env.WERKBANK_DATA || '_pdf-workbench';
@@ -134,6 +135,19 @@ const TOOLS = [
       const pages = res.pages.filter((p) => p.status !== 'same').map((p) => { const changes = p.changes.slice(0, Math.max(0, left)); left -= changes.length; return { ...p, changes, ...(changes.length < p.changes.length ? { more_in_report: p.changes.length - changes.length } : {}) }; });
       return { summary: res.summary, pages, report };
     } },
+  { name: 'pdf_replace_text', description: 'Rewrites text in the PDF (real text editing, not an overlay): every line containing "find" is rewritten with the replacement. The old letters are deleted from the page code, the new line is written with a similar font (Liberation Sans, or Times/Courier for serif/monospace text); unchanged parts of a line keep bold/italic/color. The new line starts where the old one started and is not re-wrapped. Two checks run before anything is written: no old letter may remain and no other text may be lost; otherwise nothing is changed. Scanned pages need pdf_ocr first (the old line is then covered in white because it is part of the image). Writes a new PDF and lists every changed line. Run dry_run first and show the user the list of changes.',
+    inputSchema: { type: 'object', properties: { file: FILE, find: { type: 'string', description: 'Text to search (plain text unless regex=true)' }, replace: { type: 'string', description: 'Replacement ($1 etc. work with regex)' }, regex: { type: 'boolean' }, match_case: { type: 'boolean', description: 'Default false' }, pages: PAGES, dry_run: { type: 'boolean', description: 'Only list the lines that would change' }, out: OUT }, required: ['file', 'find'] },
+    run: async (a) => {
+      const bytes = readPdf(a.file), n = (await info(bytes)).pages, pages = a.pages ? parsePages(a.pages, n) : undefined;
+      if (a.dry_run) {
+        const re = new RegExp(a.regex ? a.find : String(a.find).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), a.match_case ? 'g' : 'gi');
+        const lines = (await readText(bytes)).filter((p) => !pages || pages.includes(p.page - 1)).flatMap((p) => p.text.split('\n').filter((l) => { re.lastIndex = 0; return re.test(l); }).map((l) => ({ page: p.page, old: l, new: l.replace(re, a.replace ?? '') })));
+        return { dry_run: true, lines };
+      }
+      const r = await replaceText(bytes, { find: a.find, replace: a.replace ?? '', regex: !!a.regex, matchCase: !!a.match_case, pages });
+      if (!r.bytes) return { changed: [], hint: 'No line contains the text. Check the spelling or use pdf_find.' };
+      return { file: write(freeName(a.file, 'edited', a.out), r.bytes), changed: r.changed, covered_on_scanned_pages: r.covered };
+    } },
 ];
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
 
@@ -144,7 +158,7 @@ async function handle(msg) {
   const { id, method, params } = msg;
   if (id === undefined) return; // notification
   try {
-    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pdf-workbench', version: '0.8.3' }, instructions: INSTRUCTIONS } });
+    if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pdf-workbench', version: '0.10.0' }, instructions: INSTRUCTIONS } });
     if (method === 'ping') return send({ jsonrpc: '2.0', id, result: {} });
     if (method === 'tools/list') return send({ jsonrpc: '2.0', id, result: { tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) } });
     if (method === 'tools/call') {

@@ -28,7 +28,33 @@ export const ICONS = {
   pen: 'M5 19l1-4L16 5l3 3L9 18zM14 7l3 3',
   comment: 'M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM12 8v5M9.5 10.5h5',
   note: 'M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 9h8M8 12h5',
-  eraser: 'M16 4.5l4 4a1.5 1.5 0 0 1 0 2.1L12 19H8l-4-4a1.5 1.5 0 0 1 0-2.1L13.9 4.5a1.5 1.5 0 0 1 2.1 0zM9 9.5l6 6M12 20h8',
+  // Eraser: a tilted rubber block with a sleeve; the rubber tip is filled (ICON_FILL) so it reads as an eraser at a glance
+  eraser: 'M15 3.4l5.6 5.6L9 20.6 3.4 15zM7.4 10.9l5.7 5.7M14 20.6h6',
+  underline: 'M7 4v7a5 5 0 0 0 10 0V4M5 20h14',
+  strike: 'M16.5 7.5A4 4 0 0 0 12.5 5h-1.5a3.5 3.5 0 0 0-2 6.4M15 14.5a3.5 3.5 0 0 1-3 4.5h-1.5a4 4 0 0 1-4-2.5M4 12h16',
+  addText: 'M5 7V4h14v3M12 4v16M9 20h6',
+  editText: 'M3 7V5h11v2M8.5 5v12M6.5 17h4M13 20l.8-3.3 5.7-5.7 2.5 2.5-5.7 5.7z',
+  image: 'M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15.5 9.5h.01',
+  shapeLine: 'M5 19L19 5',
+  shapeArrow: 'M5 19L19 5M11 5h8v8',
+  shapeRect: 'M4 6h16v12H4z',
+  shapeEllipse: 'M12 5c4.4 0 8 3.1 8 7s-3.6 7-8 7-8-3.1-8-7 3.6-7 8-7z',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
+  share: 'M16 7l-4-4-4 4M12 3v12M5 12v8h14v-8',
+  search: 'M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM20 20l-4.8-4.8',
+  list: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+  outline: 'M4 5h16M8 10h12M8 15h12M12 20h8',
+  pages: 'M8 3h11v14H8zM5 7v14h11',
+  sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
+  moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  folder: 'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z',
+  bold: 'M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z',
+  italic: 'M10 4h8M6 20h8M14 4l-4 16',
+  check: 'M5 12l5 5 9-10',
+  chevron: 'M6 9l6 6 6-6',
+  grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  cursor: 'M5 3l14 8-6 2-2 6z',
   spark: 'M11 3l1.8 5.2L18 10l-5.2 1.8L11 17l-1.8-5.2L4 10l5.2-1.8zM19 15v5M16.5 17.5h5',
   book: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11',
   quiz: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01',
@@ -60,4 +86,10 @@ export const ICONS = {
   json: 'M9 4C6 4 7 8 5 12c2 4 1 8 4 8M15 4c3 0 2 4 4 8-2 4-1 8-4 8M12 11.5h.01M9.5 12h.01M14.5 12h.01'
 };
 
-export const iconSvg = (name, size = 20) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name] || ''}"/></svg>`;
+// Optional filled part of an icon (drawn under the outline, slightly transparent)
+export const ICON_FILL = {
+  eraser: 'M7.4 10.9l5.7 5.7L9 20.6 3.4 15z'
+};
+export const fillPath = (name) => (ICON_FILL[name] ? `<path d="${ICON_FILL[name]}" fill="currentColor" fill-opacity=".55" stroke="none"/>` : '');
+
+export const iconSvg = (name, size = 20) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${fillPath(name)}<path d="${ICONS[name] || ''}"/></svg>`;

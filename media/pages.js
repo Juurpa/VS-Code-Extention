@@ -21,8 +21,9 @@ export async function commit(bytes, ann) {
   S.api.updateUndo(); updateDirty();
 }
 export function updateDirty() {
+  // The File button shows a dot and gets highlighted while there are unsaved changes to the document
   const b = $('#tFile'); if (!b) return;
-  b.hidden = !S.dirty; b.classList.toggle('primary', S.dirty);
+  b.classList.toggle('dirty', !!S.dirty); b.title = S.dirty ? t('Unsaved changes – File → Save or Save as') : t('File: save, save as, copy, print, e-mail');
 }
 
 const nPages = () => S.pages.length;
@@ -135,28 +136,101 @@ export const insertFrom = (at) => guard(async () => {
 const field = (label, input, hint) => el('label', { class: 'fld' }, el('span', {}, label), input, hint ? el('small', { class: 'muted' }, hint) : null);
 const numInput = (v, min, max, step = 1) => el('input', { type: 'number', value: v, min, max, step });
 
+// Merge: any number of files can be dropped (from the file manager, or from the VS Code explorer with Shift held).
+// Rows appear at once and are read one after another; each row shows its place and its page range in the result.
 export function mergeDialog() {
-  const items = [{ name: S.name + '  ' + t('(this document)'), bytes: null, self: true }];
-  const list = el('div', { class: 'mlist' });
-  const draw = () => {
-    list.replaceChildren(...items.map((it, i) => el('div', { class: 'mrow' },
-      el('span', { class: 'mname' }, (i + 1) + '. ' + it.name),
-      el('button', { class: 'tb icon', title: t('Move up'), disabled: i === 0, onclick: () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; draw(); } }, '↑'),
-      el('button', { class: 'tb icon', title: t('Move down'), disabled: i === items.length - 1, onclick: () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; draw(); } }, '↓'),
-      el('button', { class: 'tb icon', title: t('Remove'), disabled: items.length < 2, onclick: () => { items.splice(i, 1); draw(); } }, '✕'))));
+  const items = [{ name: S.name, self: true, pages: nPages(), state: 'ok' }];
+  const list = el('div', { class: 'mlist' }), sum = el('div', { class: 'msum muted' });
+  let dragI = null, queue = Promise.resolve();
+  const loading = () => items.some((it) => it.state === 'load');
+
+  const row = (it, i, from) => {
+    const status = it.state === 'load' ? el('span', { class: 'mstat' }, el('i', { class: 'spin' }), t('loading …'))
+      : it.state === 'err' ? el('span', { class: 'mstat err', title: it.error || '' }, t('Not a readable PDF'))
+      : el('span', { class: 'mstat' }, it.pages === 1 ? t('Page {n}', { n: from + 1 }) : t('Pages {a}–{b}', { a: from + 1, b: from + it.pages }));
+    const r = el('div', { class: 'mrow' + (it.self ? ' self' : '') + (it.state === 'err' ? ' bad' : ''), draggable: 'true' },
+      el('span', { class: 'mgrip', title: t('Drag to reorder'), 'aria-hidden': 'true' }, '⋮⋮'),
+      el('span', { class: 'mpos' }, i + 1),
+      el('span', { class: 'mname', title: it.name }, it.name, it.self ? el('span', { class: 'muted' }, '  ' + t('(this document)')) : null),
+      status,
+      el('button', { class: 'tb icon', title: t('Move up'), disabled: i === 0, onclick: () => move(i, i - 1) }, '↑'),
+      el('button', { class: 'tb icon', title: t('Move down'), disabled: i === items.length - 1, onclick: () => move(i, i + 2) }, '↓'),
+      el('button', { class: 'tb icon', title: t('Remove'), disabled: items.length < 2, onclick: () => { items.splice(i, 1); draw(); } }, '✕'));
+    // Reorder by dragging rows; files dropped onto a row are inserted there
+    r.addEventListener('dragstart', (e) => { dragI = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'mrow'); r.classList.add('dragging'); });
+    r.addEventListener('dragend', () => { dragI = null; draw(); });
+    r.addEventListener('dragover', (e) => {
+      e.preventDefault(); e.stopPropagation(); zone.classList.remove('over');
+      const b = r.getBoundingClientRect(), before = e.clientY < b.top + b.height / 2;
+      $$('.mrow', list).forEach((x) => x.classList.remove('dropB', 'dropA')); r.classList.add(before ? 'dropB' : 'dropA');
+    });
+    r.addEventListener('drop', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const b = r.getBoundingClientRect(), at = e.clientY < b.top + b.height / 2 ? i : i + 1;
+      if (dragI != null) move(dragI, at); else addDropped(e.dataTransfer, at);
+    });
+    return r;
   };
-  draw();
-  const add = el('button', { class: 'pillBtn', onclick: async () => {
+  const draw = () => {
+    let from = 0;
+    list.replaceChildren(...items.map((it, i) => { const r = row(it, i, from); if (it.state === 'ok') from += it.pages; return r; }));
+    const n = items.filter((it) => it.state === 'load').length;
+    zone.classList.toggle('compact', items.length > 1);
+    sum.textContent = t('Result: {f} files, {p} pages', { f: items.filter((it) => it.state === 'ok').length, p: from }) + (n ? ' · ' + t('{n} still loading …', { n }) : '');
+  };
+  // to = index before which the item lands (0 … items.length)
+  const move = (from, to) => { if (to === from || to === from + 1) return draw(); const [it] = items.splice(from, 1); items.splice(to > from ? to - 1 : to, 0, it); draw(); };
+
+  // Rows are added at once, reading happens one file after another
+  const enqueue = (entries, at = items.length) => {
+    const rows = entries.map((x) => ({ name: x.name, state: 'load', read: x.read }));
+    items.splice(at, 0, ...rows); draw();
+    for (const it of rows) queue = queue.then(async () => {
+      if (!items.includes(it)) return;
+      try { it.bytes = await it.read(); it.pages = await ops.pageCount(it.bytes); it.state = 'ok'; }
+      catch (e) { it.state = 'err'; it.error = String(e?.message || e); }
+      delete it.read; draw();
+      if (dragI == null) list.querySelectorAll('.mrow')[items.indexOf(it)]?.scrollIntoView({ block: 'nearest' });
+    });
+  };
+  const isPdf = (name) => /\.pdf$/i.test(name);
+  async function addDropped(dt, at) {
+    $$('.mrow', list).forEach((x) => x.classList.remove('dropB', 'dropA')); zone.classList.remove('over');
+    const files = [...(dt.files || [])].filter((f) => isPdf(f.name) || f.type === 'application/pdf');
+    if (files.length) { enqueue(files.map((f) => ({ name: f.name, read: async () => new Uint8Array(await f.arrayBuffer()) })), at); return; }
+    // From the VS Code explorer only links arrive: the extension reads the files
+    const uris = (dt.getData('application/vnd.code.uri-list') || dt.getData('text/uri-list') || '').split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith('#') && isPdf(decodeURIComponent(s)));
+    if (!uris.length) { toast(t('Only PDF files can be merged.')); return; }
+    const names = uris.map((u) => decodeURIComponent(u.split('/').pop()));
+    const all = S.api.request({ type: 'readPdfUris', uris });
+    enqueue(names.map((name, k) => ({ name, read: async () => { const r = await all; const f = r.files?.[k]; if (!f?.b64) throw new Error(f?.error || r.error || 'read error'); return b64ToBytes(f.b64); } })), at);
+  }
+  const pick = async () => {
     const r = await S.api.request({ type: 'pickPdfs', multi: true });
-    (r.files || []).forEach((f) => items.push({ name: f.name, bytes: b64ToBytes(f.b64) })); draw();
-  } }, t('+ Add PDF files …'));
-  modal({ title: t('Merge PDFs'), wide: true, body: el('div', { class: 'stack' }, el('p', { class: 'muted' }, t('Set the order. The result replaces this document in the editor; the file is only written when you click "Save".')), list, add),
+    enqueue((r.files || []).map((f) => ({ name: f.name, read: async () => b64ToBytes(f.b64) })));
+  };
+
+  const zone = el('div', { class: 'mdrop', role: 'button', tabindex: '0', onclick: pick, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } } },
+    el('span', { class: 'mdropIc', html: icon('download') }),
+    el('b', {}, t('Drag PDFs here')),
+    el('span', { class: 'muted' }, t('or click to choose · any number')),
+    // Webviews only accept files from the VS Code explorer while Shift is held
+    el('small', { class: 'mhint muted' }, ...t('From VS Code: hold {key} while dragging').split('{key}').flatMap((x, i) => (i ? [el('kbd', {}, '⇧ Shift'), x] : [x]))));
+  draw();
+  const m = modal({ title: t('Merge PDFs'), wide: true, body: el('div', { class: 'stack mergeDlg' }, el('p', { class: 'muted' }, t('Set the order. The result replaces this document in the editor; the file is only written when you click "Save".')), list, sum, zone),
     actions: [{ label: t('Cancel') }, { label: t('Merge'), primary: true, onClick: () => {
+      if (loading()) { toast(t('Please wait until all files are loaded.')); return false; }
+      if (items.some((it) => it.state === 'err')) { toast(t('Remove the files that could not be read first.')); return false; }
       if (items.length < 2) { toast(t('Please add at least one more PDF.')); return false; }
-      guard(async () => { const merged = await ops.merge(items.map((it) => it.bytes || S.bytes)); const order = []; let off = 0;
-        for (const it of items) { const k = it.self ? nPages() : await ops.pageCount(it.bytes); if (it.self) order.push(...range(k)); else order.push(...Array(k).fill(-1)); off += k; } void off;
+      guard(async () => { const merged = await ops.merge(items.map((it) => (it.self ? S.bytes : it.bytes))); const order = [];
+        for (const it of items) order.push(...(it.self ? range(it.pages) : Array(it.pages).fill(-1)));
         await commit(merged, ops.annReorder(S.ann, order)); toast(t('Merged: {n} pages.', { n: nPages() })); });
     } }] });
+  // The whole dialog (and its dark background) accepts files, the drop area lights up
+  const back = m.box.parentElement;
+  back.addEventListener('dragover', (e) => { e.preventDefault(); if (dragI == null) zone.classList.add('over'); });
+  back.addEventListener('dragleave', (e) => { if (!back.contains(e.relatedTarget)) zone.classList.remove('over'); });
+  back.addEventListener('drop', (e) => { e.preventDefault(); if (dragI == null) addDropped(e.dataTransfer); });
 }
 
 export function splitDialog() {
@@ -273,6 +347,7 @@ export function compressDialog() {
 
 // ------------------------------------------------------------ Saving
 export async function saveFile() {
+  if (S.converted) return saveAs(); // opened from Word/PowerPoint/an image: never overwrite the original
   await guard(async () => {
     const r = await S.api.request({ type: 'confirmOverwrite', name: S.name }); if (!r.ok) return;
     const w = await S.api.request({ type: 'saveFile', b64: toB64(S.bytes) });
@@ -281,8 +356,8 @@ export async function saveFile() {
 }
 export async function saveAs() {
   await guard(async () => {
-    const w = await S.api.request({ type: 'saveAs', b64: toB64(S.bytes), suggested: baseName() + '_new.pdf' });
-    if (w.ok) toast(t('Saved: {names}', { names: w.name }), 5000);
+    const w = await S.api.request({ type: 'saveAs', b64: toB64(S.bytes), suggested: S.converted ? S.name : baseName() + '_new.pdf' });
+    if (w.ok) { toast(t('Saved: {names}', { names: w.name }), 5000); if (S.converted) { S.dirty = false; updateDirty(); } }
   });
 }
 

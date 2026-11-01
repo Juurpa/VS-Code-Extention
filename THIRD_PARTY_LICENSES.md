@@ -652,3 +652,23 @@ Lizenz: BSD-artig (2 Bedingungen) · Copyright (C) 2001-2020 Leptonica · https:
  -  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *====================================================================*/
 ```
+
+---
+
+## Word, PowerPoint und Bilder öffnen (seit 0.10.0)
+
+Word- (.docx) und PowerPoint-Dateien (.pptx) werden im Betrachter lokal dargestellt und in ein PDF umgewandelt, ohne Netzverbindung. Die Lizenztexte liegen unverändert in `media/lib/office/`.
+
+| Komponente | Version | Lizenz | Urheber | Enthalten in / Lizenzdatei |
+|---|---|---|---|---|
+| docx-preview | 0.4.1 | Apache-2.0 | Copyright (c) 2016-2023 Volodymyr Baydalka · https://github.com/VolodymyrBaydalka/docxjs | `docx-preview.min.js` · `LICENSE-docx-preview.txt` |
+| JSZip | 3.10.2 | MIT (wahlweise GPL-3.0; hier unter MIT genutzt) | Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso · https://github.com/Stuk/jszip | `jszip.min.js` und gebündelt im pptx-renderer · `LICENSE-jszip.md` |
+| html-to-image | 1.11.13 | MIT | Copyright (c) 2017-2025 W.Y. · https://github.com/bubkoo/html-to-image | `html-to-image.js` · `LICENSE-html-to-image.txt` |
+| @aiden0z/pptx-renderer | 1.4.0 | Apache-2.0 | aiden0z · https://github.com/aiden0z/pptx-renderer | `aiden0z-pptx-renderer.browser.es.js` · `LICENSE-pptx-renderer.txt`, Hinweise des Projekts in `NOTICE-pptx-renderer.md` |
+| Apache ECharts (im pptx-renderer gebündelt, für Diagramme) | 6.1.0 | Apache-2.0 (Teile aus d3: BSD-3-Clause) | Copyright 2017-2026 The Apache Software Foundation · https://echarts.apache.org | `LICENSE-echarts.txt`, `NOTICE-echarts.txt`, `LICENSE-echarts-d3.txt` |
+| ZRender (im pptx-renderer gebündelt) | 6.1.0 | BSD-3-Clause | Copyright (c) 2017, Baidu Inc. · https://github.com/ecomfe/zrender | `LICENSE-zrender.txt` |
+| tslib (im pptx-renderer gebündelt) | 2.3.0 | 0BSD | Microsoft Corp. · https://github.com/Microsoft/tslib | Text siehe Abschnitt „tslib“ oben |
+| mtx-decompressor (im pptx-renderer gebündelt, eingebettete Schriften) | 1.4.2 | MPL-2.0, unverändert; Quelltext: https://github.com/ChristopherVR/mtx-decompressor/tree/v1.4.2 | ChristopherVR | `LICENSE-mtx-decompressor-MPL-2.0.txt` |
+| ECMA-376 DrawingML-Formdefinitionen (maschinell abgeleitete Teilmenge im pptx-renderer) | 5. Ausgabe 2016 | Ecma-Text-Copyright-Richtlinie | Copyright © Ecma International | `NOTICE-ECMA.txt` |
+
+Die Apache-2.0-Texte entsprechen dem Text in `LICENSE` dieses Projekts.

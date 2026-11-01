@@ -90,5 +90,11 @@ export default {
   'Save (overwrite file)': 'Speichern (Datei überschreiben)',
   'Save as …': 'Speichern unter …',
   // util.js
-  '(click to report)': '(zum Melden klicken)'
+  '(click to report)': '(zum Melden klicken)',
+  // convert.js (0.10.0)
+  "Converting to PDF …": "Wird in PDF umgewandelt …",
+  "Converting to PDF … page {n}": "Wird in PDF umgewandelt … Seite {n}",
+  "Converted from “{name}” to PDF. The original stays unchanged; File → Save as PDF creates a new file.": "„{name}“ wurde in ein PDF umgewandelt. Das Original bleibt unverändert; Datei → Als PDF speichern legt eine neue Datei an.",
+  "Could not convert the file: {msg}": "Die Datei konnte nicht umgewandelt werden: {msg}",
+  "Save as PDF …": "Als PDF speichern …"
 };

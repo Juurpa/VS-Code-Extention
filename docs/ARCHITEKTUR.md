@@ -22,7 +22,17 @@ VS Code
 | `media/pages.js` | Seitenwerkzeuge (drehen, löschen, umsortieren, zusammenfügen, aufteilen …), Speichern, `commit()` (Undo-fähige Änderung des Dokuments) |
 | `media/pdfops.js` | reine pdf-lib-Operationen auf Bytes (wird auch vom MCP-Server genutzt: darum kein DOM-Zugriff!) |
 | `media/tools.js` | Zeichnen, Radierer, Schwärzen-Oberfläche (`applyRedactions` → Nachricht `redact`), Unterschrift |
+| `media/bar.js` | Werkzeugleiste: Anordnung (`S.bar.items`, gespeichert als `pdfWorkbench.bar`), Ziehen, Rechtsklick, Dialog „Leiste anpassen“ |
+| `media/panel.js` | Seitenleiste mit Registerkarten: Seiten, Markierungsliste (Filter, Sprung, Export, KI), Suche (pdf.js-Text, Treffer-Rechtecke), Inhalt (Outline) |
+| `media/edit.js` | Text bearbeiten (Zeile wählen → `readLines` → Editor → `editText`), Textfelder (`texts`), Bilder (`imgs`) |
+| `media/annots.js` | Kopie bauen: einbrennen oder echte PDF-Annotationen (Highlight/Underline/StrikeOut/Ink/Line/Square/Circle/Text); `shapePolys` für Formen |
+| `media/share.js` | Datei-Menü, Kopie speichern unter, Drucken, E-Mail |
+| `share.js` | Host: Temp-Datei für Drucken, `.eml`-Entwurf mit `X-Unsent: 1` |
+| `mcp/edittext.mjs` | Zeilen umschreiben: `linesOf` (PDFium-Zeichen → Zeilen), `charStyles` (fett/kursiv/Farbe), Löschen über `applyRedactions({edit:true})`, Prüfungen (nichts Altes übrig, nichts anderes verloren), neue Zeile in Abschnitten mit eigenem Stil |
 | `media/ocr.js` | OCR-Dialog (Seiten wählen, Fortschritt, Abbrechen) → Nachricht `ocr` |
+| `media/convert.js` | Bild/.docx/.pptx → PDF im Webview: Bilder per pdf-lib (EXIF-Drehung verlustfrei), Word über docx-preview, PowerPoint über pptx-renderer; Seite → SVG (html-to-image) → JPEG, Wortkästen aus dem DOM (`wordsOf`) → Nachricht `buildPdf` |
+| `mcp/imgpdf.mjs` | `pagesToPdf`: Seitenbilder + unsichtbare Textebene (Liberation Sans, Wörter einer Zeile mit Leerzeichen dazwischen) |
+| `media/lib/office/` | docx-preview, JSZip, html-to-image, @aiden0z/pptx-renderer (Browser-Build, bündelt ECharts/ZRender/mtx-decompressor), dazu die Lizenzdateien |
 | `media/util.js` | Zustand `S`, `el()`-Helfer, `toast` (Fehler-Toasts sind anklickbar → Bericht), `modal`, Icons |
 | `media/lib/` | mitgelieferte Fremdbibliotheken: pdf.js 4.10.38, pdf-lib, Schriften (Liberation Sans), cmaps |
 | `mcp/server.mjs` | MCP-Server, 15 Werkzeuge (`pdf_info, pdf_read_text, pdf_read_marks, pdf_find, pdf_redact, pdf_ocr, pdf_merge, pdf_split, pdf_extract_pages, pdf_delete_pages, pdf_rotate, pdf_reorder, pdf_crop, pdf_number_pages, pdf_compress`), Pfad-Sandbox (`safe()` im Arbeitsordner), überschreibt nie |
@@ -47,6 +57,14 @@ Webview sendet `{type, rid?, …}`; Antworten kommen als `{type:'reply', rid, �
 3. Fallback je Seite (Foto/Kurve unter dem Balken, nicht eindeutig zuordenbar, senkrechte Schrift, gemischte Codelängen, geteilte Form-XObjects): Seite als Bild rendern mit eingebranntem Balken + unsichtbare Textebene (Originaltext ohne geschwärzte Zeichen).
 4. Prüfung (`verifyGone`): rohe Bytes, entpackte Streams (latin1/utf16/utf8), alle Wörterbuch-Strings, Seitentext per PDFium; geometrisch (`checkVectorPages`: kein Zeichenmittelpunkt in einem Balken); `scrub` leert Info/Lesezeichen/XMP, falls dort Treffer stehen. Fehlschlag auf einer Seite → diese Seite wird als Bild neu gemacht.
 5. Scan-Seiten haben keinen Text: erst OCR, dann Schwärzen (getestet: Treffer liegt im Bild → Bildfallback mit Textebene).
+
+## Word, PowerPoint, Bilder öffnen
+`package.json`: `pdfWorkbench.pdfEditor` gilt auch für `*.docx`/`*.pptx` (Standard), `pdfWorkbench.imageEditor` für Bilder (nur „Öffnen mit“ bzw. Kontextmenü `pdfWorkbench.openIn`, damit VS Codes Bildvorschau Standard bleibt). Beide nutzen denselben `PdfEditorProvider`; `kindOf()` setzt `cfg.kind` und `cfg.pdfName`.
+1. `main.js` `start()`: bei `kind !== 'pdf'` → `convertFile()` → `toPdf()`; danach `S.converted = true`, `S.dirty = true`, `S.name = <name>.pdf`.
+2. Word: `docx.renderAsync` (breakPages, Bilder als data-URL) in eine Bühne außerhalb des Bildschirms; je `section.docx` ein SVG. Zu lange Abschnitte (Dateien ohne `lastRenderedPageBreak`, z. B. nicht von Word gespeichert) werden an Absatz-/Tabellenzeilen-Grenzen geschnitten (`cutPoints`), Nachbarinhalt wird weiß abgedeckt.
+3. PowerPoint: `parseZip` → `buildPresentation` → `renderSlide` je Folie (ausgeblendete Folien übersprungen, `pdfjs: false`, externe Medien blockiert).
+4. Rastern: SVG mit verschobener `viewBox` → Canvas (2×, JPEG 0,9). Textebene in `mcp/imgpdf.mjs`: Grundlinie ≈ 79 % der Glyphenbox, Wortbreite über die Textmatrix angepasst.
+5. Speichern: `saveFile` leitet bei `S.converted` auf `saveAs` (Vorschlag `<name>.pdf`); der Host lehnt `saveFile` für Nicht-PDFs zusätzlich ab. Das Original wird nie geschrieben.
 
 ## OCR
 `ocrPdf(bytes, {pages, langs, fast, force, signal, onProgress, workers})`

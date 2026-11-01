@@ -205,11 +205,13 @@ function stripAnnots(doc, node, barsUser, wiped) {
   return dropped;
 }
 
-async function vectorPage({ doc, jsPage, pageIdx, barsUser, wiped }) {
+// edit = true: text editing. Only the letters are deleted (no bar, links stay); graphics and images under the area are allowed.
+async function vectorPage({ doc, jsPage, pageIdx, barsUser, wiped, edit = false }) {
   const page = doc.getPage(pageIdx), node = page.node;
   const an = await analyze(jsPage, barsUser);
-  if (an.images.some((b) => barsUser.some((r) => overlaps(b, r)))) throw new Error('Image under the bar');
-  if (an.curves.some((b) => barsUser.some((r) => overlaps(b, r)))) throw new Error('Graphic under the bar');
+  const overImage = an.images.some((b) => barsUser.some((r) => overlaps(b, r)));
+  if (!edit && overImage) throw new Error('Image under the bar');
+  if (!edit && an.curves.some((b) => barsUser.some((r) => overlaps(b, r)))) throw new Error('Graphic under the bar');
   for (const t of an.textOps) for (const it of t.items) if (it.g) it.g.removed = it.removed = hitsBars(it.box, barsUser);
   const cs = contentStreams(doc, node);
   if (!cs.length) throw new Error('Page without content');
@@ -219,13 +221,13 @@ async function vectorPage({ doc, jsPage, pageIdx, barsUser, wiped }) {
   const out = processStream(joined, res, ctx);
   if (ctx.k !== an.textOps.length) throw new Error('Nicht alle Textanweisungen zugeordnet');
   const rects = barsUser.map((b) => `${fmt(b[0])} ${fmt(b[1])} ${fmt(b[2] - b[0])} ${fmt(b[3] - b[1])} re`).join('\n');
-  const body = Buffer.concat([Buffer.from('q\n'), Buffer.from(out.bytes), Buffer.from(`\nQ\nq\n0 0 0 rg\n${rects}\nf\nQ\n`)]);
-  stripAnnots(doc, node, barsUser, wiped);
+  const body = Buffer.concat([Buffer.from('q\n'), Buffer.from(out.bytes), Buffer.from(edit ? '\nQ\n' : `\nQ\nq\n0 0 0 rg\n${rects}\nf\nQ\n`)]);
+  if (!edit) stripAnnots(doc, node, barsUser, wiped);
   const newRef = doc.context.register(doc.context.flateStream(body));
   node.set(PDFName.of('Contents'), newRef);
   for (const { ref } of cs) doc.context.delete(ref);
   cleanPageExtras(doc, node);
-  return { removedGlyphs: ctx.removedGlyphs };
+  return { removedGlyphs: ctx.removedGlyphs, overImage };
 }
 
 /** Fallback: page as an image (bars burned in) with an exact invisible text layer, in the same page object. */
@@ -269,9 +271,9 @@ function collectGarbage(doc) {
  * force: Set of pages that should be rebuilt directly as an image.
  * Returns { bytes, modes: Map(page -> 'vector' | 'image'), reasons: Map(page -> reason) }.
  */
-export async function applyRedactions({ bytes, pdfium, plan, scale, force = new Set() }) {
+export async function applyRedactions({ bytes, pdfium, plan, scale, force = new Set(), edit = false }) {
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
-  const js = await openJs(bytes), modes = new Map(), reasons = new Map(), fontBox = {}, wiped = [];
+  const js = await openJs(bytes), modes = new Map(), reasons = new Map(), fontBox = {}, wiped = [], overImage = new Set();
   try {
     for (const [i, barsPx] of plan) {
       const jsPage = await js.getPage(i + 1), vp = jsPage.getViewport({ scale: 1 });
@@ -281,14 +283,16 @@ export async function applyRedactions({ bytes, pdfium, plan, scale, force = new 
       });
       let done = false;
       if (!force.has(i)) {
-        try { await vectorPage({ doc, jsPage, pageIdx: i, barsUser, wiped }); modes.set(i, 'vector'); done = true; }
+        try { const v = await vectorPage({ doc, jsPage, pageIdx: i, barsUser, wiped, edit }); if (v.overImage) overImage.add(i); modes.set(i, 'vector'); done = true; }
         catch (e) { reasons.set(i, String(e.message || e)); }
       } else reasons.set(i, 'Check of the vector variant failed');
+      // Editing never turns a page into an image: the caller reports the reason instead
+      if (!done && edit) throw Object.assign(new Error(reasons.get(i)), { page: i + 1 });
       if (!done) { await flattenPage({ doc, pdfium, pageIdx: i, barsPx, barsUser, scale, fontBox, wiped }); modes.set(i, 'image'); }
     }
   } finally { await js.destroy(); }
   const dropped = collectGarbage(doc);
-  return { bytes: await doc.save({ useObjectStreams: true }), modes, reasons, wiped, dropped };
+  return { bytes: await doc.save({ useObjectStreams: true }), modes, reasons, wiped, dropped, overImage };
 }
 
 /** Checks the vector pages: no character whose center lies in a bar may remain readable. Returns faulty pages. */

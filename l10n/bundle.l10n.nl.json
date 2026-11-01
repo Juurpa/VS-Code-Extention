@@ -78,5 +78,6 @@
   "Description": "Beschrijving",
   "Request or Idea": "Verzoek of idee",
   "Your text probably contains private details ({0}). Please remove them before sending.": "Je tekst bevat waarschijnlijk privégegevens ({0}). Verwijder ze voordat je verzendt.",
-  "Prompt inserted into Claude Code. Check it and send it with Enter.": "Prompt in Claude Code ingevoegd. Controleer hem en verstuur met Enter."
+  "Prompt inserted into Claude Code. Check it and send it with Enter.": "Prompt in Claude Code ingevoegd. Controleer hem en verstuur met Enter.",
+  "Show in folder": "Weergeven in map"
 }

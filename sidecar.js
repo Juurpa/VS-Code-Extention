@@ -18,9 +18,11 @@ function collectMarks(ann) {
   for (const n of pages) {
     const a = ann[n] || {};
     const hl = (a.hl || []).filter((h) => h.text && h.text !== '…').map((h) => ({ page: n, kind: 'hl', text: h.text, color: COLOR_NAMES[h.color] || 'highlighted' }));
+    (a.hl || []).forEach((h, i) => { if (h.note && hl[i]) hl[i].note = h.note; if (hl[i] && h.style && h.style !== 'hl') hl[i].style = h.style === 'ul' ? 'underlined' : 'struck through'; });
     const notes = (a.notes || []).map((x) => ({ page: n, kind: 'note', text: x.text }));
+    const texts = (a.texts || []).filter((x) => x.text).map((x) => ({ page: n, kind: 'text', text: x.text }));
     const ink = (a.ink || []).length;
-    if (hl.length || notes.length || ink) res.push({ page: n, hl, notes, ink });
+    if (hl.length || notes.length || texts.length || ink) res.push({ page: n, hl, notes, texts, ink });
   }
   return res;
 }
@@ -31,8 +33,9 @@ function buildMarksMd({ relPdf, ann }) {
   if (!marks.length) out.push('_No highlights yet._', '');
   for (const m of marks) {
     out.push(`## Page ${m.page}`, '');
-    m.hl.forEach((h) => out.push(`- “${h.text}” (${h.color})`));
+    m.hl.forEach((h) => out.push(`- “${h.text}” (${h.style || h.color})` + (h.note ? ` – my note: ${h.note}` : '')));
     m.notes.forEach((x) => out.push(`- Comment: ${x.text}`));
+    (m.texts || []).forEach((x) => out.push(`- Text added on the page: ${x.text}`));
     if (m.ink) out.push(`- ${m.ink} handwritten drawing(s) on this page`);
     out.push('');
   }
@@ -51,6 +54,9 @@ function buildPrompt(kind, { relPdf, dataFolder, page, selection, count }) {
     case 'quiz': return `Create ${count || 8} multiple-choice questions (4 answers each) about the PDF ${pdf} that match my highlights. ${files} Put the solutions with a short explanation and page number at the end and save everything as \`${dir}/quiz.md\`. Answer in English.`;
     case 'cards': return `Create ${count || 15} flashcards (front: question or term, back: answer) for the PDF ${pdf}. ${files} Focus mainly on my highlighted passages. Save them as \`${dir}/flashcards.md\` in the format "Q: … / A: …". Answer in English.`;
     case 'explain': return `Explain this passage from the PDF ${pdf}${page ? ` (page ${page})` : ''} clearly and with an example:\n\n“${String(selection || '').slice(0, 1200)}”\n\n${files} ${cite}`;
+    case 'marks-notes': return `Build a study sheet ONLY from my highlights and comments on the PDF ${pdf}. ${files} Group the highlighted passages by topic, explain each one in one or two sentences and add the page number. Use the full text only to fill gaps. Save it as \`${dir}/highlights-study-sheet.md\`. Answer in the language of the PDF.`;
+    case 'marks-mindmap': return `Create a mind map of my highlights on the PDF ${pdf} as a Mermaid diagram (mindmap syntax) with the main topic in the center and the highlighted passages as branches (short labels, page numbers in brackets). ${files} Save it as \`${dir}/highlights-mindmap.md\` inside a \`\`\`mermaid code block. Answer in the language of the PDF.`;
+    case 'marks-summary': return `Summarize what I highlighted in the PDF ${pdf}: the key messages of my highlights in a short, structured text with page numbers. ${files} Save it as \`${dir}/highlights-summary.md\`. Answer in the language of the PDF.`;
     case 'ask': return `I am working with the PDF ${pdf}. ${files} Answer my question based on these files. ${cite}\n\nQuestion: `;
     default: return '';
   }

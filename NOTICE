@@ -3,5 +3,6 @@ Copyright 2026 The PDF Workbench authors
 
 Dieses Produkt enthält Software von Dritten. Die Lizenzen stehen in THIRD_PARTY_LICENSES.md.
 Includes pdf.js (Apache-2.0, Mozilla Foundation), pdf-lib (MIT, Andrew Dillon), PDFium (Apache-2.0, The PDFium Authors) via @hyzyla/pdfium (MIT) Tesseract OCR (Apache-2.0, Tesseract-Projekt) via tesseract.js (Apache-2.0) mit den Sprachdaten tessdata_best, and further components listed there.
+Word/PowerPoint viewing: docx-preview (Apache-2.0, Volodymyr Baydalka), @aiden0z/pptx-renderer (Apache-2.0) with Apache ECharts (Apache-2.0, The Apache Software Foundation; this product includes software developed at The Apache Software Foundation, https://www.apache.org/), ZRender (BSD-3-Clause, Baidu Inc.) and mtx-decompressor (MPL-2.0), JSZip (MIT), html-to-image (MIT).
 
 Claude und Claude Code sind Produkte von Anthropic. Die PDF Workbench enthält sie nicht, sondern spricht sie nur an, wenn der Nutzer sie selbst installiert hat.

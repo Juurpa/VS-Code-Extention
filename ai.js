@@ -11,7 +11,7 @@ const cfg = () => vscode.workspace.getConfiguration('pdfWorkbench');
 const dec = (b) => Buffer.from(b).toString('utf8');
 const SECRET_KEY = 'pdfWorkbench.apiKey';
 
-const RESULT_FILE = { 'summary-doc': 'summary.md', learn: 'study-notes.md', quiz: 'quiz.md', cards: 'flashcards.md' };
+const RESULT_FILE = { 'summary-doc': 'summary.md', learn: 'study-notes.md', quiz: 'quiz.md', cards: 'flashcards.md', 'marks-notes': 'highlights-study-sheet.md', 'marks-mindmap': 'highlights-mindmap.md', 'marks-summary': 'highlights-summary.md' };
 
 const providers = new Map();
 

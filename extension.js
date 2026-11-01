@@ -4,6 +4,7 @@ const path = require('path');
 const sc = require('./sidecar');
 const ai = require('./ai');
 const fb = require('./feedback');
+const share = require('./share');
 
 const cfg = () => vscode.workspace.getConfiguration('pdfWorkbench');
 // Saved signatures: a list of { id, png }; the single signature of older versions becomes the first entry
@@ -23,6 +24,11 @@ async function writeFile(uri, content) {
 }
 
 function nonce() { let t = ''; const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < 32; i++) t += c[Math.floor(Math.random() * c.length)]; return t; }
+
+// Other files open as a PDF (converted in the viewer, media/convert.js); the original is never written
+const KINDS = { pdf: 'pdf', docx: 'docx', pptx: 'pptx', jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', bmp: 'image', webp: 'image' };
+const kindOf = (p) => KINDS[path.extname(p).slice(1).toLowerCase()] || 'pdf';
+const asPdfName = (p) => path.basename(p).replace(/\.[^.]+$/, '') + '.pdf';
 
 const ocrJobs = new Map();
 const panels = new Set(); // open PDF Workbench views, so that switching the AI shows up everywhere immediately
@@ -50,6 +56,7 @@ class PdfEditorProvider {
     const marksUri = vscode.Uri.joinPath(dirUri, 'marks.md');
     const textUri = vscode.Uri.joinPath(dirUri, 'text.md');
     const mediaUri = vscode.Uri.joinPath(this.ctx.extensionUri, 'media');
+    const kind = kindOf(uri.fsPath);
 
     const roots = [mediaUri, vscode.Uri.file(path.dirname(uri.fsPath))];
     if (ws) roots.push(ws.uri);
@@ -57,10 +64,17 @@ class PdfEditorProvider {
     panel.webview.html = this.html(panel.webview, mediaUri, {
       pdfUri: panel.webview.asWebviewUri(uri).toString(),
       mediaUri: panel.webview.asWebviewUri(mediaUri).toString(),
-      name: path.basename(uri.fsPath), relPdf, dataFolder, lang: vscode.env.language
+      name: path.basename(uri.fsPath), pdfName: asPdfName(uri.fsPath), kind, relPdf, dataFolder, lang: vscode.env.language
     });
 
     const send = (m) => panel.webview.postMessage(m);
+    let lastBytes = null; // document as the viewer last sent it (text editing), so it is not sent again on every click
+    let ownWrite = 0;     // time of our own save, so the file watcher does not report it as an outside change
+    // Changed on disk by another program (or the AI): the viewer offers to reload
+    const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.file(path.dirname(uri.fsPath)), path.basename(uri.fsPath)));
+    let changeT = null;
+    watcher.onDidChange(() => { clearTimeout(changeT); changeT = setTimeout(() => { if (Date.now() - ownWrite > 3000) send({ type: 'fileChanged' }); }, 600); });
+    panel.onDidDispose(() => watcher.dispose());
     const entry = { push: () => send({ type: 'ai', ai: aiInfo(panel.webview, mediaUri) }) };
     panels.add(entry); panel.onDidDispose(() => panels.delete(entry));
     panel.webview.onDidReceiveMessage(async (msg) => {
@@ -74,7 +88,72 @@ class PdfEditorProvider {
               const [a, b] = await Promise.all([vscode.workspace.fs.stat(textUri), vscode.workspace.fs.stat(uri)]);
               hasText = a.mtime >= b.mtime;
             }
-            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('pdfWorkbench.sig') || null, sigs: sigLibrary(this.ctx), sigId: this.ctx.globalState.get('pdfWorkbench.sigId') || null, quick: this.ctx.globalState.get('pdfWorkbench.quick') || [], ai: aiInfo(panel.webview, mediaUri) });
+            send({ type: 'init', ann, hasText, sig: this.ctx.globalState.get('pdfWorkbench.sig') || null, sigs: sigLibrary(this.ctx), sigId: this.ctx.globalState.get('pdfWorkbench.sigId') || null, quick: this.ctx.globalState.get('pdfWorkbench.quick') || [], bar: this.ctx.globalState.get('pdfWorkbench.bar') || null, view: this.ctx.globalState.get('pdfWorkbench.view') || {}, ai: aiInfo(panel.webview, mediaUri) });
+            break;
+          }
+          case 'saveBar': await this.ctx.globalState.update('pdfWorkbench.bar', msg.bar && typeof msg.bar === 'object' ? msg.bar : null); break;
+          case 'saveView': await this.ctx.globalState.update('pdfWorkbench.view', msg.view && typeof msg.view === 'object' ? msg.view : {}); break;
+          case 'readLines': case 'editText': {
+            if (msg.b64) lastBytes = new Uint8Array(Buffer.from(msg.b64, 'base64'));
+            try {
+              if (!lastBytes) throw new Error('No document.');
+              const mod = await import(vscode.Uri.joinPath(this.ctx.extensionUri, 'mcp', 'edittext.mjs').toString());
+              if (msg.type === 'readLines') send({ type: 'reply', rid: msg.rid, ok: true, line: await mod.readLines(lastBytes, msg.box) });
+              else {
+                const r = await mod.editText(lastBytes, msg.edits);
+                send({ type: 'reply', rid: msg.rid, ok: true, b64: r.bytes ? Buffer.from(r.bytes).toString('base64') : null, changed: r.changed, covered: r.covered });
+              }
+            } catch (err) { if (msg.type === 'editText') fb.record('Edit text', err); send({ type: 'reply', rid: msg.rid, ok: false, error: String(err && err.message || err) }); }
+            break;
+          }
+          case 'saveCopyAs': {
+            const target = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(path.join(path.dirname(uri.fsPath), share.safeName(msg.suggested))), filters: { PDF: ['pdf'] }, title: msg.title });
+            if (!target) { send({ type: 'reply', rid: msg.rid, ok: false }); break; }
+            if (target.fsPath === uri.fsPath) ownWrite = Date.now();
+            await writeFile(target, Buffer.from(msg.b64, 'base64'));
+            send({ type: 'reply', rid: msg.rid, ok: true, name: path.basename(target.fsPath) });
+            vscode.window.showInformationMessage(vscode.l10n.t('Saved: {0}', path.basename(target.fsPath)), vscode.l10n.t('Open'), vscode.l10n.t('Show in folder')).then((c) => {
+              if (c === vscode.l10n.t('Open')) vscode.commands.executeCommand('vscode.open', target);
+              else if (c) vscode.commands.executeCommand('revealFileInOS', target);
+            });
+            break;
+          }
+          case 'exportText': {
+            const ext = String(msg.ext || 'md').replace(/[^a-z]/g, '') || 'md';
+            const target = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(path.join(path.dirname(uri.fsPath), share.safeName(msg.suggested))), filters: { [ext.toUpperCase()]: [ext] } });
+            if (!target) { send({ type: 'reply', rid: msg.rid, ok: false }); break; }
+            await writeFile(target, String(msg.content || ''));
+            send({ type: 'reply', rid: msg.rid, ok: true, name: path.basename(target.fsPath) });
+            vscode.commands.executeCommand('vscode.open', target, { viewColumn: vscode.ViewColumn.Beside });
+            break;
+          }
+          case 'print': {
+            // Name and bytes come from the webview: only ever hand a real .pdf to the OS handler
+            const bytes = Buffer.from(msg.b64, 'base64');
+            if (!share.isPdf(bytes)) { send({ type: 'reply', rid: msg.rid, ok: false }); break; }
+            const file = share.tempFile(share.pdfName(msg.name || path.basename(uri.fsPath)), bytes);
+            const ok = await vscode.env.openExternal(vscode.Uri.file(file));
+            send({ type: 'reply', rid: msg.rid, ok });
+            break;
+          }
+          case 'mail': {
+            const bytes = Buffer.from(msg.b64, 'base64');
+            if (!share.isPdf(bytes)) { send({ type: 'reply', rid: msg.rid, ok: false }); break; }
+            const name = share.pdfName(msg.name);
+            const eml = share.buildEml({ to: msg.to, subject: msg.subject, body: msg.body, fileName: name, bytes });
+            const file = share.tempFile(name.replace(/\.pdf$/i, '') + '.eml', eml);
+            // The PDF itself next to the draft: for dragging into the e-mail when the mail program drops the attachment
+            const pdf = path.join(path.dirname(file), name);
+            require('fs').writeFileSync(pdf, bytes);
+            const ok = await vscode.env.openExternal(vscode.Uri.file(file));
+            send({ type: 'reply', rid: msg.rid, ok, file, pdf });
+            break;
+          }
+          case 'revealTemp': if (msg.file && String(msg.file).startsWith(require('os').tmpdir())) vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(msg.file)); break;
+          case 'reveal': vscode.commands.executeCommand('revealFileInOS', uri); break;
+          case 'copyPath': await vscode.env.clipboard.writeText(uri.fsPath); send({ type: 'reply', rid: msg.rid, ok: true }); break;
+          case 'reloadFile': {
+            send({ type: 'reply', rid: msg.rid, ok: true, b64: Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('base64') });
             break;
           }
           case 'saveAnn':
@@ -84,8 +163,17 @@ class PdfEditorProvider {
           case 'saveText':
             await writeFile(textUri, sc.buildTextMd({ relPdf, texts: msg.texts }));
             break;
+          case 'buildPdf': { // Word/PowerPoint pages from the viewer → PDF with text layer
+            try {
+              const mod = await import(vscode.Uri.joinPath(this.ctx.extensionUri, 'mcp', 'imgpdf.mjs').toString());
+              const pages = (Array.isArray(msg.pages) ? msg.pages : []).map((p) => ({ ...p, img: new Uint8Array(Buffer.from(String(p.img), 'base64')) }));
+              const bytes = await mod.pagesToPdf(pages, { title: path.basename(uri.fsPath) });
+              send({ type: 'reply', rid: msg.rid, ok: true, b64: Buffer.from(bytes).toString('base64') });
+            } catch (err) { fb.record('Convert', err); send({ type: 'reply', rid: msg.rid, ok: false, error: String(err && err.message || err) }); }
+            break;
+          }
           case 'saveCopy': {
-            const out = vscode.Uri.file(uri.fsPath.replace(/\.pdf$/i, '') + '_marked.pdf');
+            const out = vscode.Uri.file(path.join(path.dirname(uri.fsPath), asPdfName(uri.fsPath).replace(/\.pdf$/i, '') + '_marked.pdf'));
             await writeFile(out, Buffer.from(msg.b64, 'base64'));
             vscode.window.showInformationMessage(vscode.l10n.t('Saved: {0}', path.basename(out.fsPath)), vscode.l10n.t('Open')).then((c) => { if (c) vscode.commands.executeCommand('vscode.open', out); });
             break;
@@ -125,6 +213,18 @@ class PdfEditorProvider {
             send({ type: 'reply', rid: msg.rid, files });
             break;
           }
+          case 'readPdfUris': { // files dropped from the VS Code explorer into the merge dialog (only links arrive in the webview)
+            const files = [];
+            for (const s of (Array.isArray(msg.uris) ? msg.uris : []).slice(0, 500)) {
+              try {
+                const u = vscode.Uri.parse(String(s), true);
+                if (!/\.pdf$/i.test(u.path)) throw new Error('not a PDF');
+                files.push({ name: path.basename(u.path), b64: Buffer.from(await vscode.workspace.fs.readFile(u)).toString('base64') });
+              } catch (err) { files.push({ error: String(err && err.message || err) }); }
+            }
+            send({ type: 'reply', rid: msg.rid, files });
+            break;
+          }
           case 'redact': {
             try {
               const r = await redactBytes(this.ctx, Buffer.from(msg.b64, 'base64'), msg.boxes);
@@ -154,14 +254,21 @@ class PdfEditorProvider {
             break;
           }
           case 'saveFile':
+            if (kind !== 'pdf') { send({ type: 'reply', rid: msg.rid, ok: false }); break; } // never write PDF bytes into the Word/image original
+            ownWrite = Date.now();
             await writeFile(uri, Buffer.from(msg.b64, 'base64'));
             send({ type: 'reply', rid: msg.rid, ok: true });
             break;
           case 'saveAs': {
             const target = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(path.join(path.dirname(uri.fsPath), msg.suggested || 'new.pdf')), filters: { PDF: ['pdf'] } });
             if (!target) { send({ type: 'reply', rid: msg.rid, ok: false }); break; }
+            if (target.fsPath === uri.fsPath) ownWrite = Date.now();
             await writeFile(target, Buffer.from(msg.b64, 'base64'));
             send({ type: 'reply', rid: msg.rid, ok: true, name: path.basename(target.fsPath) });
+            if (kind !== 'pdf') vscode.window.showInformationMessage(vscode.l10n.t('Saved: {0}', path.basename(target.fsPath)), vscode.l10n.t('Open'), vscode.l10n.t('Show in folder')).then((c) => {
+              if (c === vscode.l10n.t('Open')) vscode.commands.executeCommand('vscode.open', target);
+              else if (c) vscode.commands.executeCommand('revealFileInOS', target);
+            });
             break;
           }
           case 'saveMany': {
@@ -197,7 +304,7 @@ class PdfEditorProvider {
     const csp = webview.cspSource;
     const m = (f) => webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, f));
     return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${csp} data: blob:; style-src ${csp} 'unsafe-inline'; script-src 'nonce-${n}' ${csp} 'wasm-unsafe-eval'; worker-src blob:; font-src ${csp} data:; connect-src ${csp} blob: data:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${csp} data: blob:; style-src ${csp} 'unsafe-inline'; script-src 'nonce-${n}' ${csp} 'wasm-unsafe-eval'; worker-src blob:; font-src ${csp} data: blob:; connect-src ${csp} blob: data:;">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="${m('lib/textlayer.css')}"><link rel="stylesheet" href="${m('main.css')}">
 </head><body>
@@ -239,8 +346,14 @@ function activate(ctx) {
   ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => { if (e.affectsConfiguration('pdfWorkbench.ai')) panels.forEach((p) => p.push()); }));
   ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.chooseAi', ai.pickProvider));
   ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.setApiKey', () => ai.setApiKey(ctx)));
-  ctx.subscriptions.push(vscode.window.registerCustomEditorProvider('pdfWorkbench.pdfEditor', new PdfEditorProvider(ctx), {
-    webviewOptions: { retainContextWhenHidden: true }, supportsMultipleEditorsPerDocument: false
+  const editor = new PdfEditorProvider(ctx);
+  for (const id of ['pdfWorkbench.pdfEditor', 'pdfWorkbench.imageEditor']) {
+    ctx.subscriptions.push(vscode.window.registerCustomEditorProvider(id, editor, { webviewOptions: { retainContextWhenHidden: true }, supportsMultipleEditorsPerDocument: false }));
+  }
+  // Explorer context menu: images open with VS Code's own preview by default, this opens them in PDF Workbench
+  ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.openIn', (uri) => {
+    uri = uri || vscode.window.activeTextEditor?.document.uri;
+    if (uri) vscode.commands.executeCommand('vscode.openWith', uri, kindOf(uri.fsPath) === 'image' ? 'pdfWorkbench.imageEditor' : 'pdfWorkbench.pdfEditor');
   }));
 
   ctx.subscriptions.push(vscode.commands.registerCommand('pdfWorkbench.setupClaudeMd', async () => {

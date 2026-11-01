@@ -1,4 +1,4 @@
-# Stand und Plan (Version 0.8.1)
+# Stand und Plan (Version 0.10.0)
 
 ## Versionsverlauf (grob)
 - 0.3.x–0.5.x: Betrachter, Markierungen, Kommentare, Seitenwerkzeuge, Zusammenfügen/Aufteilen, einfache Signatur, KI-Aufgaben (Zusammenfassung, Lernzettel, Quiz …), MCP-Server, echtes Schwärzen mit Prüfung.
@@ -6,6 +6,9 @@
 - 0.7.0: Eingebaute OCR (tesseract.js, Deutsch+Englisch), MCP-Werkzeug `pdf_ocr`, Scan-Hinweis.
 - 0.7.1: KI-Schaltfläche zeigt Name und Symbol der gewählten KI.
 - 0.7.2: Fehlende Endpunkt/Modell-Einstellung ist eine Warnung mit Aktionen, kein Fehler.
+- 0.8.x: Englisch als Basis, 8 Sprachen, Signaturbibliothek, Schnellleiste, `pdf_compare`.
+- 0.9.0: Text bearbeiten (echt, `mcp/edittext.mjs`, KI-Werkzeug `pdf_replace_text`), Text/Bild einfügen, Unterstreichen/Durchstreichen, Formen, Seitenleiste mit Markierungsliste/Suche/Inhalt, Datei-Menü (Kopie speichern unter, eingebrannt oder als echte PDF-Kommentare), Drucken (über das PDF-Programm), E-Mail-Entwurf (.eml mit Anhang), frei anpassbare Leiste, dunkle Seiten, Neuladen bei Änderung von außen.
+- 0.10.0: Word (.docx), PowerPoint (.pptx) und Bilder (JPG/PNG/GIF/BMP/WebP) öffnen: Umwandlung in PDF im Webview (`media/convert.js`, `mcp/imgpdf.mjs`), Original bleibt unverändert, „Als PDF speichern“. Getestet im Chrome-Harness und in echtem VS Code 1.143 (Windows) mit der gepackten vsix.
 
 ## Getestet
 - Schwärzen: Regressionssuite (a, b, c, lorem, rot, img) grün; qpdf-Prüfung, Text nachweislich weg.
@@ -14,6 +17,8 @@
 - Windows (Paul): Fehler-melden-Dialog bestätigt. **OCR und MCP-Start unter Windows 11 bestätigt (Version 0.8.1, siehe `docs/fehler-windows.md`).**
 
 ## Bekannte Grenzen
+- Word/PowerPoint: Darstellung durch Browser-Renderer, kann leicht von Office abweichen (nicht installierte Schriften, SmartArt, Word-Dateien ohne gespeicherte Seitenumbrüche). Seiten sind Bilder mit Textebene, kein bearbeitbarer Office-Text. .doc/.ppt nicht unterstützt. Bisher nur mit erzeugten Testdateien (python-docx/python-pptx) geprüft, noch nicht mit echten Office-Dateien.
+- Suchtreffer-Rechtecke (`rectsFor` in `media/panel.js`) nehmen innerhalb eines pdf.js-Textstücks gleich breite Zeichen an und können um ein Zeichen versetzt sein; fällt bei umgewandelten Word-Seiten mit langen Zeilen auf.
 - OCR: ca. 3 s pro A4-Seite (Windows 11, gemessen), je nach Rechner bis ca. 25 s; Handschrift/Formeln unzuverlässig; nur Deutsch + Englisch; nur mit synthetischen Scans getestet.
 - Bildsignatur ist nur eine einfache Signatur (rechtlich keine Schriftform).
 - pdf.js-Schriften für CJK können im Schwärzen auf den Bild-Fallback gehen.

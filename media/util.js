@@ -1,6 +1,6 @@
 // Shared state and small UI helpers
 import { t } from './i18n.js';
-import { ICONS } from './icons.js';
+import { ICONS, fillPath } from './icons.js';
 export const S = {
   pdf: null, bytes: null, name: '', fp: '', zoom: 1, tool: 'select',
   hlColor: '#fff176', penColor: '#e53935', penW: 3,
@@ -59,19 +59,21 @@ export const IC = {
   note: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z'
 };
 export const icon = (n) => (ICONS[n]
-  ? `<svg class="si" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[n]}"/></svg>`
+  ? `<svg class="si" viewBox="0 0 24 24" aria-hidden="true">${fillPath(n)}<path d="${ICONS[n]}"/></svg>`
   : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n] || ''}"/></svg>`);
 export function fillIcons(root = document) {
   $$('[data-i]', root).forEach((e) => { if (!e.firstChild) e.innerHTML = icon(e.dataset.i); });
 }
 
 let toastTimer;
-export function toast(msg, ms = 3200) {
+// act = { label, onClick }: the toast becomes clickable and runs onClick
+export function toast(msg, ms = 3200, act = null) {
   const tt = $('#toast');
   const isErr = /^Error/.test(msg);
-  tt.textContent = isErr ? msg + '  ' + t('(click to report)') : msg; tt.hidden = false;
-  tt.style.pointerEvents = isErr ? 'auto' : ''; tt.style.cursor = isErr ? 'pointer' : '';
-  tt.onclick = isErr ? () => { tt.hidden = true; S.api.post && S.api.post({ type: 'report', kind: 'bug', what: msg }); } : null;
+  if (isErr) act = { label: t('(click to report)'), onClick: () => S.api.post && S.api.post({ type: 'report', kind: 'bug', what: msg }) };
+  tt.textContent = act ? msg + '  ' + act.label : msg; tt.hidden = false;
+  tt.style.pointerEvents = act ? 'auto' : ''; tt.style.cursor = act ? 'pointer' : '';
+  tt.onclick = act ? () => { tt.hidden = true; act.onClick(); } : null;
   if (isErr && S.api.post) S.api.post({ type: 'jsError', message: msg.slice(0, 300) });
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (tt.hidden = true), isErr ? Math.max(ms, 8000) : ms);

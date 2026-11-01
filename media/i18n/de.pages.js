@@ -32,6 +32,18 @@ export default {
   'Merge': 'Zusammenführen',
   'Please add at least one more PDF.': 'Bitte mindestens ein weiteres PDF hinzufügen.',
   'Merged: {n} pages.': 'Zusammengeführt: {n} Seiten.',
+  'loading …': "lädt …",
+  'Not a readable PDF': "Kein lesbares PDF",
+  'Pages {a}–{b}': "Seiten {a}–{b}",
+  'Drag to reorder': "Ziehen zum Umsortieren",
+  'Result: {f} files, {p} pages': "Ergebnis: {f} Dateien, {p} Seiten",
+  '{n} still loading …': "{n} laden noch …",
+  'Only PDF files can be merged.': "Nur PDF-Dateien können zusammengeführt werden.",
+  'Drag PDFs here': "PDFs hierher ziehen",
+  'or click to choose · any number': "oder klicken zum Auswählen · beliebig viele",
+  'From VS Code: hold {key} while dragging': "Aus VS Code: beim Ziehen {key} halten",
+  'Please wait until all files are loaded.': "Bitte warten, bis alle Dateien geladen sind.",
+  'Remove the files that could not be read first.': "Bitte zuerst die Dateien entfernen, die nicht gelesen werden konnten.",
 
   // Split
   'By page ranges': 'Nach Seitenbereichen',

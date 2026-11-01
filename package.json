@@ -1,8 +1,8 @@
 {
   "name": "pdf-workbench",
   "displayName": "PDF Workbench – PDF Editor, Redact & OCR with AI",
-  "description": "Read, annotate, redact, merge, split and OCR PDFs in VS Code – offline, with the AI of your choice (Claude Code, Gemini, Ollama …).",
-  "version": "0.8.3",
+  "description": "Read, annotate, redact, merge, split and OCR PDFs in VS Code – also opens Word, PowerPoint and images – offline, with the AI of your choice (Claude Code, Gemini, Ollama …).",
+  "version": "0.10.0",
   "publisher": "Juurpa",
   "license": "Apache-2.0",
   "engines": {
@@ -23,12 +23,44 @@
         "selector": [
           {
             "filenamePattern": "*.pdf"
+          },
+          {
+            "filenamePattern": "*.{docx,DOCX,pptx,PPTX}"
           }
         ],
         "priority": "default"
+      },
+      {
+        "viewType": "pdfWorkbench.imageEditor",
+        "displayName": "%customEditor.displayName%",
+        "selector": [
+          {
+            "filenamePattern": "*.{jpg,JPG,jpeg,JPEG,png,PNG,gif,GIF,bmp,BMP,webp,WEBP}"
+          }
+        ],
+        "priority": "option"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "pdfWorkbench.openIn",
+          "when": "resourceExtname =~ /^\\.(docx|pptx|jpe?g|png|gif|bmp|webp)$/i",
+          "group": "navigation@20"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "pdfWorkbench.openIn",
+          "when": "false"
+        }
+      ]
+    },
     "commands": [
+      {
+        "command": "pdfWorkbench.openIn",
+        "title": "%cmd.openIn.title%"
+      },
       {
         "command": "pdfWorkbench.setupClaudeMd",
         "title": "%cmd.setupClaudeMd.title%"
@@ -125,7 +157,10 @@
     "mcp",
     "claude",
     "documents",
-    "signature"
+    "signature",
+    "docx",
+    "pptx",
+    "image to pdf"
   ],
   "repository": {
     "type": "git",

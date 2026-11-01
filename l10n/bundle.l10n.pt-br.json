@@ -78,5 +78,6 @@
   "Description": "Descrição",
   "Request or Idea": "Pedido ou ideia",
   "Your text probably contains private details ({0}). Please remove them before sending.": "O texto contém provavelmente dados privados ({0}). Removê-los antes de enviar.",
-  "Prompt inserted into Claude Code. Check it and send it with Enter.": "Prompt inserido no Claude Code. Confira e envie com Enter."
+  "Prompt inserted into Claude Code. Check it and send it with Enter.": "Prompt inserido no Claude Code. Confira e envie com Enter.",
+  "Show in folder": "Mostrar na pasta"
 }
